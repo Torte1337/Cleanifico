@@ -1,0 +1,440 @@
+@page "/zeittypen"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = SecurityPolicies.ViewTimeTypes)]
+@using Cleanifico.Contracts.TimeTypes
+@using Cleanifico.Web.ApiClients
+@inject ITimeTypesApiClient ApiClient
+
+<PageTitle>Zeittypen | Cleanifico Office</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Stammdaten</p>
+        <h1>Zeittypen</h1>
+        <p>Konfigurieren Sie die Zeit- und Abwesenheitsarten Ihres Unternehmens.</p>
+    </div>
+    <AuthorizeView Policy="@SecurityPolicies.ManageTimeTypes">
+        <button class="button button-primary" type="button" @onclick="OpenCreateDialog">
+            <span aria-hidden="true">＋</span> Zeittyp anlegen
+        </button>
+    </AuthorizeView>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(feedbackMessage))
+{
+    <div class="message message-success" role="status">@feedbackMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="message message-error" role="alert">
+        <span>@errorMessage</span>
+        <button type="button" @onclick="LoadAsync">Erneut versuchen</button>
+    </div>
+}
+
+<section class="content-card">
+    <form class="toolbar" @onsubmit="LoadAsync" @onsubmit:preventDefault>
+        <label class="search-field">
+            <span class="visually-hidden">Zeittyp suchen</span>
+            <span aria-hidden="true">⌕</span>
+            <input placeholder="Zeittyp suchen..." @bind="search" />
+        </label>
+        <label class="status-filter">
+            <span>Status</span>
+            <select @bind="statusFilter" @bind:after="LoadAsync">
+                <option value="all">Alle</option>
+                <option value="active">Aktiv</option>
+                <option value="inactive">Inaktiv</option>
+            </select>
+        </label>
+        <button class="button button-secondary" type="submit">Suchen</button>
+    </form>
+
+    @if (isLoading)
+    {
+        <div class="loading-state" role="status">Zeittypen werden geladen…</div>
+    }
+    else if (timeTypes.Count == 0)
+    {
+        <div class="empty-state">
+            <strong>Keine Zeittypen gefunden</strong>
+            <p>Passen Sie Suche oder Filter an oder legen Sie den ersten Zeittyp an.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Kürzel</th>
+                        <th>Name</th>
+                        <th>Arbeitszeit</th>
+                        <th>Bezahlt</th>
+                        <th>Objekt erforderlich</th>
+                        <th>Abwesenheit</th>
+                        <th class="number-column">Sortierung</th>
+                        <th>Status</th>
+                        <th class="actions-column">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var timeType in timeTypes)
+                    {
+                        <tr class="@(timeType.IsActive ? null : "inactive-row")">
+                            <td><span class="code-chip">@timeType.Code</span></td>
+                            <td>
+                                <strong>@timeType.Name</strong>
+                                @if (!string.IsNullOrWhiteSpace(timeType.Color))
+                                {
+                                    <span class="color-value">@timeType.Color</span>
+                                }
+                            </td>
+                            <td><BooleanBadge Value="timeType.CountsAsWorkTime" /></td>
+                            <td><BooleanBadge Value="timeType.IsPaid" /></td>
+                            <td><BooleanBadge Value="timeType.RequiresObject" /></td>
+                            <td><BooleanBadge Value="timeType.IsAbsence" /></td>
+                            <td class="number-column">@timeType.SortOrder</td>
+                            <td>
+                                <span class="status-badge @(timeType.IsActive ? "active" : "inactive")">
+                                    @(timeType.IsActive ? "Aktiv" : "Inaktiv")
+                                </span>
+                            </td>
+                            <td>
+                                <AuthorizeView Policy="@SecurityPolicies.ManageTimeTypes">
+                                    <Authorized>
+                                        <div class="row-actions">
+                                            <button type="button" @onclick="() => OpenEditDialog(timeType)">Bearbeiten</button>
+                                            @if (timeType.IsActive)
+                                            {
+                                                <button type="button" @onclick="() => ConfirmDeactivate(timeType)">Deaktivieren</button>
+                                            }
+                                            else
+                                            {
+                                                <button type="button" @onclick="() => ActivateAsync(timeType)">Reaktivieren</button>
+                                            }
+                                            <button class="danger-action" type="button" @onclick="() => ConfirmDelete(timeType)">
+                                                Endgültig löschen
+                                            </button>
+                                        </div>
+                                    </Authorized>
+                                    <NotAuthorized>—</NotAuthorized>
+                                </AuthorizeView>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (isEditDialogOpen)
+{
+    <div class="modal-backdrop" role="presentation">
+        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="time-type-dialog-title">
+            <header>
+                <div>
+                    <p class="eyebrow">Zeittyp</p>
+                    <h2 id="time-type-dialog-title">@(editingId.HasValue ? "Zeittyp bearbeiten" : "Zeittyp anlegen")</h2>
+                </div>
+                <button class="icon-button" type="button" aria-label="Dialog schließen" @onclick="CloseEditDialog">×</button>
+            </header>
+
+            @if (!string.IsNullOrWhiteSpace(dialogErrorMessage))
+            {
+                <div class="message message-error" role="alert">@dialogErrorMessage</div>
+            }
+
+            <EditForm Model="formModel" OnValidSubmit="SaveAsync" FormName="time-type-form">
+                <DataAnnotationsValidator />
+
+                <div class="form-grid">
+                    <div class="form-field form-field-wide">
+                        <label for="time-type-name">Name</label>
+                        <InputText id="time-type-name" @bind-Value="formModel.Name" />
+                        <ValidationMessage For="() => formModel.Name" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="time-type-code">Kürzel</label>
+                        <InputText id="time-type-code" @bind-Value="formModel.Code" />
+                        <ValidationMessage For="() => formModel.Code" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="time-type-sort-order">Sortierung</label>
+                        <InputNumber id="time-type-sort-order" @bind-Value="formModel.SortOrder" />
+                    </div>
+
+                    <div class="form-field form-field-wide">
+                        <label for="time-type-description">Beschreibung <span>Optional</span></label>
+                        <InputTextArea id="time-type-description" @bind-Value="formModel.Description" rows="3" />
+                        <ValidationMessage For="() => formModel.Description" />
+                    </div>
+
+                    <div class="form-field form-field-wide">
+                        <label for="time-type-color">Farbe <span>Optional, Format #RRGGBB</span></label>
+                        <InputText id="time-type-color" @bind-Value="formModel.Color" placeholder="#2F855A" />
+                        <ValidationMessage For="() => formModel.Color" />
+                    </div>
+
+                    <div class="option-grid form-field-wide">
+                        <label><InputCheckbox @bind-Value="formModel.CountsAsWorkTime" /> Zählt als Arbeitszeit</label>
+                        <label><InputCheckbox @bind-Value="formModel.IsPaid" /> Grundsätzlich bezahlt</label>
+                        <label><InputCheckbox @bind-Value="formModel.RequiresObject" /> Objekt erforderlich</label>
+                        <label><InputCheckbox @bind-Value="formModel.IsAbsence" /> Abwesenheit</label>
+                    </div>
+                </div>
+
+                <footer>
+                    <button class="button button-secondary" type="button" @onclick="CloseEditDialog">Abbrechen</button>
+                    <button class="button button-primary" type="submit" disabled="@isSaving">
+                        @(isSaving ? "Wird gespeichert…" : "Speichern")
+                    </button>
+                </footer>
+            </EditForm>
+        </section>
+    </div>
+}
+
+@if (pendingConfirmation is not null)
+{
+    <div class="modal-backdrop" role="presentation">
+        <section class="modal confirmation-modal" role="alertdialog" aria-modal="true" aria-labelledby="time-type-confirm-title">
+            <header><h2 id="time-type-confirm-title">@pendingConfirmation.Title</h2></header>
+            <p>@pendingConfirmation.Message</p>
+            @if (pendingConfirmation.Kind == ConfirmationKind.Delete)
+            {
+                <p class="delete-warning">Diese Aktion löscht den Datensatz endgültig. Sobald Zeitbuchungen existieren, ist Löschen fachlich nicht mehr zulässig.</p>
+            }
+            <footer>
+                <button class="button button-secondary" type="button" @onclick="CancelConfirmation">Abbrechen</button>
+                <button class="button @(pendingConfirmation.Kind == ConfirmationKind.Delete ? "button-danger" : "button-primary")"
+                        type="button" disabled="@isSaving" @onclick="ExecuteConfirmationAsync">
+                    @(pendingConfirmation.Kind == ConfirmationKind.Delete ? "Endgültig löschen" : "Deaktivieren")
+                </button>
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    private readonly List<TimeTypeResponse> timeTypes = [];
+    private string search = string.Empty;
+    private string statusFilter = "all";
+    private string? errorMessage;
+    private string? feedbackMessage;
+    private string? dialogErrorMessage;
+    private bool isLoading;
+    private bool isSaving;
+    private bool isEditDialogOpen;
+    private Guid? editingId;
+    private UpdateTimeTypeRequest formModel = new();
+    private PendingConfirmation? pendingConfirmation;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        try
+        {
+            var result = await ApiClient.GetAllAsync(search, SelectedStatus());
+            timeTypes.Clear();
+            timeTypes.AddRange(result);
+        }
+        catch (ApiClientException exception)
+        {
+            errorMessage = $"Laden fehlgeschlagen: {exception.Message}";
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Laden fehlgeschlagen: Die Cleanifico API ist nicht erreichbar.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private bool? SelectedStatus() => statusFilter switch
+    {
+        "active" => true,
+        "inactive" => false,
+        _ => null
+    };
+
+    private void OpenCreateDialog()
+    {
+        editingId = null;
+        formModel = new UpdateTimeTypeRequest();
+        dialogErrorMessage = null;
+        isEditDialogOpen = true;
+    }
+
+    private void OpenEditDialog(TimeTypeResponse timeType)
+    {
+        editingId = timeType.Id;
+        formModel = new UpdateTimeTypeRequest
+        {
+            Name = timeType.Name,
+            Code = timeType.Code,
+            Description = timeType.Description,
+            CountsAsWorkTime = timeType.CountsAsWorkTime,
+            IsPaid = timeType.IsPaid,
+            RequiresObject = timeType.RequiresObject,
+            IsAbsence = timeType.IsAbsence,
+            Color = timeType.Color,
+            SortOrder = timeType.SortOrder
+        };
+        dialogErrorMessage = null;
+        isEditDialogOpen = true;
+    }
+
+    private void CloseEditDialog()
+    {
+        if (!isSaving)
+        {
+            isEditDialogOpen = false;
+            dialogErrorMessage = null;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        isSaving = true;
+        dialogErrorMessage = null;
+        try
+        {
+            if (editingId.HasValue)
+            {
+                await ApiClient.UpdateAsync(editingId.Value, formModel);
+                feedbackMessage = "Der Zeittyp wurde gespeichert.";
+            }
+            else
+            {
+                await ApiClient.CreateAsync(new CreateTimeTypeRequest
+                {
+                    Name = formModel.Name,
+                    Code = formModel.Code,
+                    Description = formModel.Description,
+                    CountsAsWorkTime = formModel.CountsAsWorkTime,
+                    IsPaid = formModel.IsPaid,
+                    RequiresObject = formModel.RequiresObject,
+                    IsAbsence = formModel.IsAbsence,
+                    Color = formModel.Color,
+                    SortOrder = formModel.SortOrder
+                });
+                feedbackMessage = "Der Zeittyp wurde angelegt.";
+            }
+
+            isEditDialogOpen = false;
+            await LoadAsync();
+        }
+        catch (ApiClientException exception)
+        {
+            dialogErrorMessage = $"Speichern fehlgeschlagen: {exception.Message}";
+        }
+        catch (HttpRequestException)
+        {
+            dialogErrorMessage = "Speichern fehlgeschlagen: Die Cleanifico API ist nicht erreichbar.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void ConfirmDeactivate(TimeTypeResponse timeType) =>
+        pendingConfirmation = new(
+            timeType,
+            ConfirmationKind.Deactivate,
+            "Zeittyp deaktivieren",
+            $"Möchten Sie den Zeittyp „{timeType.Name}“ wirklich deaktivieren?");
+
+    private void ConfirmDelete(TimeTypeResponse timeType) =>
+        pendingConfirmation = new(
+            timeType,
+            ConfirmationKind.Delete,
+            "Zeittyp endgültig löschen",
+            $"Möchten Sie den Zeittyp „{timeType.Name}“ endgültig löschen?");
+
+    private void CancelConfirmation()
+    {
+        if (!isSaving)
+        {
+            pendingConfirmation = null;
+        }
+    }
+
+    private async Task ExecuteConfirmationAsync()
+    {
+        if (pendingConfirmation is null)
+        {
+            return;
+        }
+
+        var confirmation = pendingConfirmation;
+        isSaving = true;
+        errorMessage = null;
+        try
+        {
+            if (confirmation.Kind == ConfirmationKind.Deactivate)
+            {
+                await ApiClient.DeactivateAsync(confirmation.TimeType.Id);
+                feedbackMessage = "Der Zeittyp wurde deaktiviert.";
+            }
+            else
+            {
+                await ApiClient.DeleteAsync(confirmation.TimeType.Id);
+                feedbackMessage = "Der Zeittyp wurde endgültig gelöscht.";
+            }
+
+            pendingConfirmation = null;
+            await LoadAsync();
+        }
+        catch (ApiClientException exception)
+        {
+            pendingConfirmation = null;
+            errorMessage = exception.Message;
+        }
+        catch (HttpRequestException)
+        {
+            pendingConfirmation = null;
+            errorMessage = "Die Cleanifico API ist nicht erreichbar.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ActivateAsync(TimeTypeResponse timeType)
+    {
+        try
+        {
+            await ApiClient.ActivateAsync(timeType.Id);
+            feedbackMessage = "Der Zeittyp wurde reaktiviert.";
+            await LoadAsync();
+        }
+        catch (ApiClientException exception)
+        {
+            errorMessage = exception.Message;
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Die Cleanifico API ist nicht erreichbar.";
+        }
+    }
+
+    private enum ConfirmationKind { Deactivate, Delete }
+
+    private sealed record PendingConfirmation(
+        TimeTypeResponse TimeType,
+        ConfirmationKind Kind,
+        string Title,
+        string Message);
+}

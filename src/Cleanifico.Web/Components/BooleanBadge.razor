@@ -1,0 +1,6 @@
+<span class="boolean-badge @(Value ? "yes" : "no")">@(Value ? "Ja" : "Nein")</span>
+
+@code {
+    [Parameter]
+    public bool Value { get; set; }
+}

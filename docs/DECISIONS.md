@@ -199,3 +199,23 @@ Entscheidung: Der letzte aktive Owner kann weder deaktiviert werden noch seine O
 Grund: Ein Tenant darf sich nicht selbst aus der Administration aussperren; die Kontohistorie bleibt erhalten.
 
 Datum: 2026-08-25
+
+## DEC-021 – Zeittypen sind frei konfigurierbare Kundendaten
+
+Status: Accepted
+
+Entscheidung: `TimeType` ist ein normaler tenantlokaler Datensatz und kein Enum. Die Standard-Zeittypen werden genau einmal idempotent angelegt und besitzen keine System-, Built-in- oder Sperrkennzeichen. Ein technischer Initialisierungsmarker verhindert jedes spätere Reseeding oder Zurücksetzen.
+
+Grund: Jeder Tenant muss Namen, Codes, Eigenschaften, Status und Bestand vollständig an die eigene Arbeitsweise anpassen können. Startlogik darf produktive Kundendaten niemals überschreiben.
+
+Datum: 2026-08-25
+
+## DEC-022 – Historische Zeitbuchungen speichern Zeittyp-Snapshots
+
+Status: Accepted
+
+Entscheidung: Spätere `TimeEntry`-Datensätze speichern neben `TimeTypeId` mindestens Name, Arbeitszeit-, Bezahlt-, Objektpflicht- und Abwesenheitsmerkmal des Zeittyps als Snapshot. Ein verwendeter Zeittyp wird regulär deaktiviert statt gelöscht.
+
+Grund: Änderungen an frei konfigurierbaren Zeittypen dürfen historische Arbeitszeitbuchungen nicht rückwirkend verändern oder fachlich umdeuten.
+
+Datum: 2026-08-25

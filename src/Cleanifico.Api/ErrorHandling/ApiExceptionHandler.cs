@@ -1,5 +1,6 @@
 using Cleanifico.Application.CleaningTypes;
 using Cleanifico.Application.Security;
+using Cleanifico.Application.TimeTypes;
 using Cleanifico.Domain.Common;
 using Microsoft.AspNetCore.Diagnostics;
 
@@ -30,6 +31,22 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 Results.Problem(
                     statusCode: StatusCodes.Status409Conflict,
                     title: "Reinigungstyp konnte nicht geändert werden",
+                    detail: conflictException.Message,
+                    extensions: new Dictionary<string, object?>
+                    {
+                        ["field"] = conflictException.Field
+                    }),
+
+            TimeTypeNotFoundException notFoundException =>
+                Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Zeittyp nicht gefunden",
+                    detail: notFoundException.Message),
+
+            TimeTypeConflictException conflictException =>
+                Results.Problem(
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Zeittyp konnte nicht geändert werden",
                     detail: conflictException.Message,
                     extensions: new Dictionary<string, object?>
                     {

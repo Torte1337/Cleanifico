@@ -1,9 +1,11 @@
 using Cleanifico.Application.CleaningTypes;
 using Cleanifico.Application.Security;
+using Cleanifico.Application.TimeTypes;
 using Cleanifico.Infrastructure.Persistence;
 using Cleanifico.Infrastructure.Persistence.Repositories;
 using Cleanifico.Infrastructure.Security.Bootstrap;
 using Cleanifico.Infrastructure.Security.Identity;
+using Cleanifico.Infrastructure.TimeTypes;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -37,6 +39,7 @@ public static class DependencyInjection
                 }));
 
         services.AddScoped<ICleaningTypeRepository, EfCleaningTypeRepository>();
+        services.AddScoped<ITimeTypeRepository, EfTimeTypeRepository>();
 
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(IdentitySecurityDefaults.Configure)
             .AddEntityFrameworkStores<CleanificoDbContext>()
@@ -56,6 +59,10 @@ public static class DependencyInjection
         services.Configure<SecurityBootstrapOptions>(
             configuration.GetSection(SecurityBootstrapOptions.SectionName));
         services.AddHostedService<IdentityBootstrapHostedService>();
+
+        services.Configure<TimeTypeBootstrapOptions>(
+            configuration.GetSection(TimeTypeBootstrapOptions.SectionName));
+        services.AddHostedService<TimeTypeBootstrapHostedService>();
 
         return services;
     }

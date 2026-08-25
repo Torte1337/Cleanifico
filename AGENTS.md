@@ -24,6 +24,8 @@
 - Keine Template-Demos, toten Code, unnötigen Packages oder unbegründeten Breaking Changes einführen.
 - Keine Geschäftsanforderungen erfinden.
 - Fachliche Stammdaten mit Historienbezug bevorzugt deaktivieren statt löschen.
+- Zeittypen sind frei konfigurierbare Datensätze, keine Enums; Standard-Zeittypen niemals sperren oder durch Initialisierung zurücksetzen.
+- Spätere Zeitbuchungen müssen historisch relevante Zeittyp-Eigenschaften als Snapshot speichern.
 - Technische Audit-Zeitstempel grundsätzlich in UTC speichern.
 - Sicherheitsentscheidungen zentral über Rollen, Policies und Application-Services abbilden; Endpunkte nicht ad hoc nach Rollennamen verzweigen.
 - Passwörter, Tokens und sonstige Secrets weder fest codieren noch protokollieren oder als Contract ausgeben.

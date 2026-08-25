@@ -9,8 +9,9 @@ Cleanifico ist eine mandantenfähige Betriebssoftware für Gebäudereinigungsunt
 - EF Core 9.0.19 mit stabilem Pomelo-MySQL-Provider 9.0.0 für MySQL 8.4
 - `CleanificoDbContext`, tenantlokales ASP.NET Core Identity und Migrationen `InitialCleanificoPersistence` sowie `AddTenantIdentity`
 - erster vertikaler Fachschnitt `CleaningType` mit Domain-Regeln, Application Service, REST API und Blazor-Verwaltung
+- frei konfigurierbare `TimeType`-Stammdaten mit einmalig initialisierten, vollständig änderbaren Standardwerten
 - separate ASP.NET Core API mit geschützten Cleaning-Type- und Benutzer-Endpunkten; nur `GET /health` und Login sind anonym erreichbar
-- separate Blazor-Web-App für Cleanifico Office mit Login, `/reinigungstypen` und `/administration/benutzer`
+- separate Blazor-Web-App für Cleanifico Office mit Login, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer`
 - fünf xUnit-Testprojekte mit Domain-, Application-, Identity-, EF-, Architektur-, API- und Web-Integrationstests
 - noch keine Lizenzprüfung, Discovery-, Mobile- oder sonstigen externen Integrationen
 
@@ -76,7 +77,7 @@ Migrationen werden kontrolliert ausgeführt. Die Anwendung migriert beim Start k
 ```bash
 dotnet ef database update \
   --project src/Cleanifico.Infrastructure \
-  --startup-project src/Cleanifico.Api \
+  --startup-project src/Cleanifico.Infrastructure \
   --context CleanificoDbContext \
   --connection "Server=localhost;Port=3306;Database=cleanifico_dev;User=<user>;Password=<password>"
 ```
@@ -86,7 +87,7 @@ Neue Migrationen werden aus dem Repository-Root erzeugt:
 ```bash
 dotnet ef migrations add <MigrationName> \
   --project src/Cleanifico.Infrastructure \
-  --startup-project src/Cleanifico.Api \
+  --startup-project src/Cleanifico.Infrastructure \
   --context CleanificoDbContext \
   --output-dir Persistence/Migrations
 ```
@@ -106,6 +107,12 @@ Der Design-Time-Context verwendet ohne explizite Zielverbindung nur eine nicht f
 | `DELETE` | `/api/cleaning-types/{id}` | Unreferenzierten Datensatz endgültig löschen |
 
 Lesen erfordert `Owner`, `Administrator`, `Dispatcher` oder `ObjectManager`; Schreiben ist auf `Owner` und `Administrator` beschränkt. Anonyme Zugriffe erhalten `401`, angemeldete Benutzer ohne Berechtigung `403`.
+
+## Zeittypen
+
+Zeittypen werden unter `/api/time-types` und in Cleanifico Office unter `/zeittypen` verwaltet. Sie sind normale tenantlokale Datensätze und keine fest codierten Enums. Owner und Administrator dürfen lesen und verwalten; Dispatcher und ObjectManager nur lesen; Employee erhält keinen administrativen Zugriff.
+
+Beim ersten Start nach der Migration `AddConfigurableTimeTypes` werden `ARB`, `PAU`, `FAH`, `URL`, `KRK`, `SCH` und `BES` einmalig angelegt. Ein technischer Initialisierungsmarker verhindert jede spätere Neueinspielung: Umbenennen, Codeänderungen, Eigenschaften, Deaktivierung und auch Löschungen werden nie durch Startlogik zurückgesetzt. Sobald spätere Zeitbuchungen einen Zeittyp verwenden, ist Deaktivierung statt physischem Löschen vorgesehen.
 
 ## Dokumentation
 

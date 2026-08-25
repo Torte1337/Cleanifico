@@ -82,6 +82,38 @@ public sealed class OfficeWebSecurityTests
                 || !html.Contains("Verwalten Sie tenantlokale Zugänge", StringComparison.Ordinal));
         }
     }
+
+    [Theory]
+    [InlineData(SecurityRoles.Owner, true)]
+    [InlineData(SecurityRoles.Administrator, true)]
+    [InlineData(SecurityRoles.Dispatcher, false)]
+    [InlineData(SecurityRoles.ObjectManager, false)]
+    public async Task OfficeRoles_CanOpenTimeTypesWithRoleAppropriateActions(
+        string role,
+        bool canManage)
+    {
+        await using var host = await OfficeWebTestHost.StartAsync(role, anonymous: false);
+
+        using var response = await host.Client.GetAsync("/zeittypen");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Konfigurieren Sie die Zeit- und Abwesenheitsarten", html, StringComparison.Ordinal);
+        Assert.Equal(canManage, html.Contains("Zeittyp anlegen", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Employee_CannotOpenTimeTypes()
+    {
+        await using var host = await OfficeWebTestHost.StartAsync(SecurityRoles.Employee, anonymous: false);
+
+        using var response = await host.Client.GetAsync("/zeittypen");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.True(
+            response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Redirect
+            || !html.Contains("Konfigurieren Sie die Zeit- und Abwesenheitsarten", StringComparison.Ordinal));
+    }
 }
 
 internal sealed class OfficeWebTestHost : IAsyncDisposable

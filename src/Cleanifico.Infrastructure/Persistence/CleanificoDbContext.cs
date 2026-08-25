@@ -1,4 +1,6 @@
 using Cleanifico.Domain.CleaningTypes;
+using Cleanifico.Domain.TimeTypes;
+using Cleanifico.Infrastructure.Persistence.Initialization;
 using Cleanifico.Infrastructure.Security.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -10,6 +12,11 @@ public sealed class CleanificoDbContext(DbContextOptions<CleanificoDbContext> op
     : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<CleaningType> CleaningTypes => Set<CleaningType>();
+
+    public DbSet<TimeType> TimeTypes => Set<TimeType>();
+
+    public DbSet<DataInitializationMarker> DataInitializationMarkers =>
+        Set<DataInitializationMarker>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

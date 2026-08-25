@@ -1,0 +1,17 @@
+.boolean-badge {
+    border-radius: 999px;
+    display: inline-block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.24rem 0.5rem;
+}
+
+.boolean-badge.yes {
+    background: #e2f5eb;
+    color: #1f6c49;
+}
+
+.boolean-badge.no {
+    background: #ecefee;
+    color: #65716b;
+}

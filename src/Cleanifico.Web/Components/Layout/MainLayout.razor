@@ -23,6 +23,12 @@
                     Reinigungstypen
                 </NavLink>
             </AuthorizeView>
+            <AuthorizeView Policy="@SecurityPolicies.ViewTimeTypes">
+                <NavLink href="/zeittypen">
+                    <span class="nav-icon" aria-hidden="true">◷</span>
+                    Zeittypen
+                </NavLink>
+            </AuthorizeView>
             <AuthorizeView Policy="@SecurityPolicies.AdministrationAccess">
                 <p class="nav-section">Administration</p>
                 <NavLink href="/administration/benutzer">

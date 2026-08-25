@@ -3,8 +3,10 @@ using System.Text.Encodings.Web;
 using Cleanifico.Api;
 using Cleanifico.Application.CleaningTypes;
 using Cleanifico.Application.Security;
+using Cleanifico.Application.TimeTypes;
 using Cleanifico.Contracts.Security;
 using Cleanifico.Domain.CleaningTypes;
+using Cleanifico.Domain.TimeTypes;
 using Cleanifico.Infrastructure.Security.Authorization;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
@@ -24,32 +26,47 @@ internal sealed class ApiTestHost : IAsyncDisposable
     private ApiTestHost(
         WebApplication application,
         HttpClient client,
-        FakeCleaningTypeRepository repository)
+        FakeCleaningTypeRepository repository,
+        FakeTimeTypeRepository timeTypeRepository)
     {
         this.application = application;
         Client = client;
         Repository = repository;
+        TimeTypeRepository = timeTypeRepository;
     }
 
     public HttpClient Client { get; }
 
     public FakeCleaningTypeRepository Repository { get; }
 
+    public FakeTimeTypeRepository TimeTypeRepository { get; }
+
     public static async Task<ApiTestHost> StartAsync(params CleaningType[] seed)
-        => await StartCoreAsync(SecurityRoles.Owner, false, seed);
+        => await StartCoreAsync(SecurityRoles.Owner, false, seed, []);
 
     public static Task<ApiTestHost> StartAnonymousAsync(params CleaningType[] seed) =>
-        StartCoreAsync(null, true, seed);
+        StartCoreAsync(null, true, seed, []);
 
     public static Task<ApiTestHost> StartAsRoleAsync(string role, params CleaningType[] seed) =>
-        StartCoreAsync(role, false, seed);
+        StartCoreAsync(role, false, seed, []);
+
+    public static Task<ApiTestHost> StartWithTimeTypesAsync(params TimeType[] seed) =>
+        StartCoreAsync(SecurityRoles.Owner, false, [], seed);
+
+    public static Task<ApiTestHost> StartAnonymousWithTimeTypesAsync(params TimeType[] seed) =>
+        StartCoreAsync(null, true, [], seed);
+
+    public static Task<ApiTestHost> StartAsRoleWithTimeTypesAsync(string role, params TimeType[] seed) =>
+        StartCoreAsync(role, false, [], seed);
 
     private static async Task<ApiTestHost> StartCoreAsync(
         string? role,
         bool anonymous,
-        CleaningType[] seed)
+        CleaningType[] seed,
+        TimeType[] timeTypeSeed)
     {
         var repository = new FakeCleaningTypeRepository(seed);
+        var timeTypeRepository = new FakeTimeTypeRepository(timeTypeSeed);
         var userService = new FakeUserAdministrationService(role);
         var application = ApiApplication.Build(
             [
@@ -57,11 +74,13 @@ internal sealed class ApiTestHost : IAsyncDisposable
                 "--ConnectionStrings:Cleanifico",
                 "Server=localhost;Database=cleanifico_api_test;User=test;Password=not-used",
                 "--SecurityBootstrap:Enabled", "false",
+                "--TimeTypeBootstrap:Enabled", "false",
                 "--Authentication:DataProtectionKeysPath", Path.Combine(Path.GetTempPath(), "cleanifico-api-tests-keys")
             ],
             services =>
             {
                 services.AddSingleton<ICleaningTypeRepository>(repository);
+                services.AddSingleton<ITimeTypeRepository>(timeTypeRepository);
                 services.AddSingleton<IUserAdministrationService>(userService);
                 services.AddSingleton(new TestIdentityOptions(role, anonymous));
                 services.AddAuthentication(options =>
@@ -89,7 +108,7 @@ internal sealed class ApiTestHost : IAsyncDisposable
         var address = Assert.Single(addresses ?? []);
         var client = new HttpClient { BaseAddress = new Uri(address) };
 
-        return new ApiTestHost(application, client, repository);
+        return new ApiTestHost(application, client, repository, timeTypeRepository);
     }
 
     public async ValueTask DisposeAsync()
@@ -249,4 +268,76 @@ internal sealed class FakeCleaningTypeRepository(params CleaningType[] seed) : I
     public void Remove(CleaningType cleaningType) => Items.Remove(cleaningType);
 
     public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+internal sealed class FakeTimeTypeRepository(params TimeType[] seed) : ITimeTypeRepository
+{
+    private bool initialized;
+
+    public List<TimeType> Items { get; } = [.. seed];
+
+    public Task<IReadOnlyList<TimeType>> GetAllAsync(
+        string? search,
+        bool? isActive,
+        CancellationToken cancellationToken)
+    {
+        var query = Items.AsEnumerable();
+        if (search is not null)
+        {
+            query = query.Where(item =>
+                item.Name.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || item.Code.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (isActive.HasValue)
+        {
+            query = query.Where(item => item.IsActive == isActive.Value);
+        }
+
+        return Task.FromResult<IReadOnlyList<TimeType>>(
+            [.. query.OrderBy(item => item.SortOrder).ThenBy(item => item.Name)]);
+    }
+
+    public Task<TimeType?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult(Items.SingleOrDefault(item => item.Id == id));
+
+    public Task<bool> NameExistsAsync(
+        string name,
+        Guid? excludedId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(Items.Any(item =>
+            item.Id != excludedId
+            && string.Equals(item.Name, name, StringComparison.OrdinalIgnoreCase)));
+
+    public Task<bool> CodeExistsAsync(
+        string code,
+        Guid? excludedId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(Items.Any(item =>
+            item.Id != excludedId
+            && string.Equals(item.Code, code, StringComparison.OrdinalIgnoreCase)));
+
+    public Task AddAsync(TimeType timeType, CancellationToken cancellationToken)
+    {
+        Items.Add(timeType);
+        return Task.CompletedTask;
+    }
+
+    public void Remove(TimeType timeType) => Items.Remove(timeType);
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    public Task InitializeDefaultsAsync(
+        IReadOnlyCollection<TimeType> defaults,
+        DateTime initializedAtUtc,
+        CancellationToken cancellationToken)
+    {
+        if (!initialized)
+        {
+            Items.AddRange(defaults);
+            initialized = true;
+        }
+
+        return Task.CompletedTask;
+    }
 }
