@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Cleanifico.Application\Cleanifico.Application.csproj" />
+    <ProjectReference Include="..\Cleanifico.Contracts\Cleanifico.Contracts.csproj" />
+    <ProjectReference Include="..\Cleanifico.Infrastructure\Cleanifico.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

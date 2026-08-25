@@ -1,0 +1,16 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Cleanifico.Api/Cleanifico.Api.csproj" />
+    <Project Path="src/Cleanifico.Application/Cleanifico.Application.csproj" />
+    <Project Path="src/Cleanifico.Contracts/Cleanifico.Contracts.csproj" />
+    <Project Path="src/Cleanifico.Domain/Cleanifico.Domain.csproj" />
+    <Project Path="src/Cleanifico.Infrastructure/Cleanifico.Infrastructure.csproj" />
+    <Project Path="src/Cleanifico.Web/Cleanifico.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Cleanifico.Api.Tests/Cleanifico.Api.Tests.csproj" />
+    <Project Path="tests/Cleanifico.Application.Tests/Cleanifico.Application.Tests.csproj" />
+    <Project Path="tests/Cleanifico.Domain.Tests/Cleanifico.Domain.Tests.csproj" />
+    <Project Path="tests/Cleanifico.Infrastructure.Tests/Cleanifico.Infrastructure.Tests.csproj" />
+  </Folder>
+</Solution>
