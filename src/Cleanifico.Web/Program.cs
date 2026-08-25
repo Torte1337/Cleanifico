@@ -1,18 +1,27 @@
 using Cleanifico.Web.Components;
+using Cleanifico.Web.ApiClients;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+var cleanificoApiBaseUrl = builder.Configuration["CleanificoApi:BaseUrl"];
+
+if (!Uri.TryCreate(cleanificoApiBaseUrl, UriKind.Absolute, out var cleanificoApiUri))
+{
+    throw new InvalidOperationException(
+        "The setting 'CleanificoApi:BaseUrl' must contain an absolute URI.");
+}
+
+builder.Services.AddHttpClient<ICleaningTypesApiClient, CleaningTypesApiClient>(client =>
+    client.BaseAddress = cleanificoApiUri);
+
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);

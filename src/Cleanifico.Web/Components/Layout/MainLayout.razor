@@ -1,9 +1,42 @@
 ﻿@inherits LayoutComponentBase
 
-@Body
+<div class="app-frame">
+    <aside class="sidebar">
+        <a class="brand" href="/" aria-label="Cleanifico Office Startseite">
+            <span class="brand-mark">C</span>
+            <span>
+                <strong>Cleanifico</strong>
+                <small>Office</small>
+            </span>
+        </a>
+
+        <nav aria-label="Hauptnavigation">
+            <NavLink href="/" Match="NavLinkMatch.All">
+                <span class="nav-icon" aria-hidden="true">⌂</span>
+                Übersicht
+            </NavLink>
+            <NavLink href="/reinigungstypen">
+                <span class="nav-icon" aria-hidden="true">◇</span>
+                Reinigungstypen
+            </NavLink>
+        </nav>
+
+        <p class="sidebar-note">Betriebssoftware für Gebäudereinigung</p>
+    </aside>
+
+    <section class="workspace">
+        <header class="topbar">
+            <span>Cleanifico Office</span>
+            <span class="environment-label">Administration</span>
+        </header>
+        <div class="page-container">
+            @Body
+        </div>
+    </section>
+</div>
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
+    Ein unerwarteter Fehler ist aufgetreten.
+    <a href="." class="reload">Neu laden</a>
     <span class="dismiss">🗙</span>
 </div>

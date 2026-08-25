@@ -15,8 +15,7 @@ body {
     box-sizing: border-box;
     margin: 0 auto;
     max-width: 72rem;
-    min-height: 100vh;
-    padding: clamp(4rem, 12vw, 10rem) clamp(1.5rem, 5vw, 4rem);
+    padding: clamp(4rem, 10vw, 8rem) clamp(1.5rem, 5vw, 4rem);
 }
 
 .office-shell h1 {
@@ -38,6 +37,24 @@ body {
     color: #52635b;
     font-size: clamp(1rem, 2vw, 1.3rem);
     margin-top: 1.25rem;
+}
+
+.home-card {
+    background: #fff;
+    border: 1px solid #dfe7e3;
+    border-radius: 1rem;
+    box-shadow: 0 1rem 3rem rgba(20, 44, 33, 0.06);
+}
+
+button,
+input,
+select,
+textarea {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
 }
 
 .valid.modified:not([type=checkbox]) {

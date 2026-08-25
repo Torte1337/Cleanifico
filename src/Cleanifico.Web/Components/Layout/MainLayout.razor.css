@@ -1,3 +1,126 @@
+.app-frame {
+    display: grid;
+    grid-template-columns: 16.5rem minmax(0, 1fr);
+    min-height: 100vh;
+}
+
+.sidebar {
+    background: #15251e;
+    color: #eaf3ef;
+    display: flex;
+    flex-direction: column;
+    padding: 1.5rem 1rem;
+}
+
+.brand {
+    align-items: center;
+    color: inherit;
+    display: flex;
+    gap: 0.75rem;
+    padding: 0 0.65rem 1.75rem;
+    text-decoration: none;
+}
+
+.brand-mark {
+    align-items: center;
+    background: #49a980;
+    border-radius: 0.65rem;
+    color: #102018;
+    display: inline-flex;
+    font-size: 1.15rem;
+    font-weight: 800;
+    height: 2.4rem;
+    justify-content: center;
+    width: 2.4rem;
+}
+
+.brand strong,
+.brand small {
+    display: block;
+}
+
+.brand strong {
+    letter-spacing: -0.02em;
+}
+
+.brand small {
+    color: #9db6aa;
+    font-size: 0.72rem;
+    letter-spacing: 0.12em;
+    margin-top: 0.1rem;
+    text-transform: uppercase;
+}
+
+nav {
+    display: grid;
+    gap: 0.35rem;
+}
+
+nav ::deep a {
+    align-items: center;
+    border-radius: 0.55rem;
+    color: #bcd0c7;
+    display: flex;
+    font-size: 0.92rem;
+    gap: 0.7rem;
+    padding: 0.75rem 0.8rem;
+    text-decoration: none;
+}
+
+nav ::deep a:hover {
+    background: #20372d;
+    color: #fff;
+}
+
+nav ::deep a.active {
+    background: #284b3c;
+    color: #fff;
+    font-weight: 650;
+}
+
+.nav-icon {
+    font-size: 1.15rem;
+    text-align: center;
+    width: 1.2rem;
+}
+
+.sidebar-note {
+    color: #819b8f;
+    font-size: 0.75rem;
+    line-height: 1.45;
+    margin: auto 0.75rem 0;
+}
+
+.workspace {
+    min-width: 0;
+}
+
+.topbar {
+    align-items: center;
+    background: rgba(255, 255, 255, 0.9);
+    border-bottom: 1px solid #dfe7e3;
+    display: flex;
+    font-size: 0.86rem;
+    height: 4rem;
+    justify-content: space-between;
+    padding: 0 2rem;
+}
+
+.environment-label {
+    background: #edf5f1;
+    border-radius: 999px;
+    color: #3d6855;
+    font-size: 0.75rem;
+    font-weight: 650;
+    padding: 0.35rem 0.7rem;
+}
+
+.page-container {
+    margin: 0 auto;
+    max-width: 90rem;
+    padding: 2.25rem 2.5rem 4rem;
+}
+
 #blazor-error-ui {
     color-scheme: light only;
     background: lightyellow;
@@ -10,6 +133,20 @@
     position: fixed;
     width: 100%;
     z-index: 1000;
+}
+
+@media (max-width: 800px) {
+    .app-frame {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        display: none;
+    }
+
+    .page-container {
+        padding: 1.5rem 1rem 3rem;
+    }
 }
 
     #blazor-error-ui .dismiss {

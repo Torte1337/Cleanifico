@@ -92,10 +92,60 @@ Datum: 2026-08-25
 
 ## DEC-010 – Persistenzpakete erst mit einem echten Modul
 
-Status: Accepted
+Status: Superseded by DEC-011
 
 Entscheidung: EF Core, Pomelo und Identity-Persistenz werden in Prompt 001 noch nicht als Pakete eingebunden.
 
 Grund: Ohne Fachmodell, `DbContext` und Konfiguration wären die Pakete ungenutzt; die passende Version und Einrichtung wird mit dem ersten Persistenzmodul festgelegt.
+
+Datum: 2026-08-25
+
+## DEC-011 – EF Core und Pomelo/MySQL als Persistenzbasis
+
+Status: Accepted
+
+Entscheidung: Cleanifico verwendet EF Core 9.0.19 mit dem stabilen Pomelo-Provider 9.0.0 und einem expliziten MySQL-8.4-Serverprofil. Auf EF Core/Pomelo 10 wird erst gemeinsam gewechselt, wenn eine stabile kompatible Providerfreigabe verfügbar und geprüft ist.
+
+Grund: Pomelo 9 ist der stabile MySQL-Providerzweig und an EF Core 9 gebunden. Die gemeinsame 9.0-Patchlinie vermeidet eine nicht unterstützte Mischung oder Preview-Abhängigkeiten und ist von `net10.0`-Hosts nutzbar.
+
+Datum: 2026-08-25
+
+## DEC-012 – Keine TenantId auf jeder Business-Entity
+
+Status: Accepted
+
+Entscheidung: Solange jeder Tenant eine eigene Instanz und MySQL-Datenbank besitzt, erhalten Business-Entities wie `CleaningType` keine zusätzliche `TenantId`.
+
+Grund: Die Datenbank bildet bereits die technische Isolationsgrenze. Ein redundantes Tenantfeld würde Abfragen und Indizes verkomplizieren, ohne die Isolation innerhalb dieses Deploymentmodells zu erhöhen.
+
+Datum: 2026-08-25
+
+## DEC-013 – Deaktivierung und bedingtes physisches Löschen von Reinigungstypen
+
+Status: Accepted
+
+Entscheidung: Reinigungstypen können deaktiviert und reaktiviert werden. Physisches Löschen ist nur zulässig, solange keine fachlichen oder historischen Referenzen existieren; sobald solche Referenzen eingeführt werden, ist Deaktivierung der normale Weg und ein Fremdschlüsselkonflikt verhindert das Löschen.
+
+Grund: Aktuell existieren keine referenzierenden Module. Das erlaubt eine einfache Bereinigung, ohne die spätere Nachvollziehbarkeit historischer Daten zu gefährden.
+
+Datum: 2026-08-25
+
+## DEC-014 – API-Contracts bleiben von Domain-Entities getrennt
+
+Status: Accepted
+
+Entscheidung: HTTP-Eingaben und -Ausgaben verwenden Typen aus `Cleanifico.Contracts`; Domain-/EF-Entities werden nicht direkt serialisiert.
+
+Grund: Öffentliche Verträge bleiben stabil und enthalten nur erlaubte Felder. Persistenzdetails und private Setter der Domain gelangen nicht über die API-Grenze.
+
+Datum: 2026-08-25
+
+## DEC-015 – Migrationen werden kontrolliert ausgeführt
+
+Status: Accepted
+
+Entscheidung: Die API führt beim normalen Start weder `EnsureCreated` noch automatische EF-Migrationen aus. Schemaänderungen werden als Migrationen versioniert und pro Ziel-Datenbank explizit ausgerollt.
+
+Grund: Jede Tenant-Datenbank muss gezielt, beobachtbar und ohne ungefragte destruktive Startaktion aktualisiert werden können.
 
 Datum: 2026-08-25

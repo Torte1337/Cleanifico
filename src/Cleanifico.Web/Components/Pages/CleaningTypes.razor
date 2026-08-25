@@ -1,0 +1,418 @@
+@page "/reinigungstypen"
+@rendermode InteractiveServer
+@using Cleanifico.Contracts.CleaningTypes
+@using Cleanifico.Web.ApiClients
+@inject ICleaningTypesApiClient ApiClient
+
+<PageTitle>Reinigungstypen | Cleanifico Office</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Stammdaten</p>
+        <h1>Reinigungstypen</h1>
+        <p>Verwalten Sie die Reinigungsarten Ihres Unternehmens.</p>
+    </div>
+    <button class="button button-primary" type="button" @onclick="OpenCreateDialog">
+        <span aria-hidden="true">＋</span> Reinigungstyp anlegen
+    </button>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(feedbackMessage))
+{
+    <div class="message message-success" role="status">@feedbackMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="message message-error" role="alert">
+        <span>@errorMessage</span>
+        <button type="button" @onclick="LoadAsync">Erneut versuchen</button>
+    </div>
+}
+
+<section class="content-card">
+    <form class="toolbar" @onsubmit="ApplySearchAsync" @onsubmit:preventDefault>
+        <label class="search-field">
+            <span class="visually-hidden">Reinigungstyp suchen</span>
+            <span aria-hidden="true">⌕</span>
+            <input placeholder="Reinigungstyp suchen..." @bind="search" />
+        </label>
+        <label class="status-filter">
+            <span>Status</span>
+            <select @bind="statusFilter" @bind:after="LoadAsync">
+                <option value="all">Alle</option>
+                <option value="active">Aktiv</option>
+                <option value="inactive">Inaktiv</option>
+            </select>
+        </label>
+        <button class="button button-secondary" type="submit">Suchen</button>
+    </form>
+
+    @if (isLoading)
+    {
+        <div class="loading-state" role="status">Reinigungstypen werden geladen…</div>
+    }
+    else if (cleaningTypes.Count == 0)
+    {
+        <div class="empty-state">
+            <strong>Keine Reinigungstypen gefunden</strong>
+            <p>Passen Sie Suche oder Filter an oder legen Sie den ersten Reinigungstyp an.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Kürzel</th>
+                        <th>Name</th>
+                        <th>Beschreibung</th>
+                        <th class="number-column">Sortierung</th>
+                        <th>Status</th>
+                        <th class="actions-column">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var cleaningType in cleaningTypes)
+                    {
+                        <tr class="@(cleaningType.IsActive ? null : "inactive-row")">
+                            <td><span class="code-chip">@cleaningType.Code</span></td>
+                            <td><strong>@cleaningType.Name</strong></td>
+                            <td class="description-cell">
+                                @(string.IsNullOrWhiteSpace(cleaningType.Description) ? "—" : cleaningType.Description)
+                            </td>
+                            <td class="number-column">@cleaningType.SortOrder</td>
+                            <td>
+                                <span class="status-badge @(cleaningType.IsActive ? "active" : "inactive")">
+                                    @(cleaningType.IsActive ? "Aktiv" : "Inaktiv")
+                                </span>
+                            </td>
+                            <td>
+                                <div class="row-actions">
+                                    <button type="button" @onclick="() => OpenEditDialog(cleaningType)">Bearbeiten</button>
+                                    @if (cleaningType.IsActive)
+                                    {
+                                        <button type="button" @onclick="() => ConfirmDeactivate(cleaningType)">Deaktivieren</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" @onclick="() => ActivateAsync(cleaningType)">Reaktivieren</button>
+                                    }
+                                    <button class="danger-action" type="button" @onclick="() => ConfirmDelete(cleaningType)">
+                                        Endgültig löschen
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (isEditDialogOpen)
+{
+    <div class="modal-backdrop" role="presentation">
+        <section class="modal" role="dialog" aria-modal="true" aria-labelledby="edit-dialog-title">
+            <header>
+                <div>
+                    <p class="eyebrow">Reinigungstyp</p>
+                    <h2 id="edit-dialog-title">@(editingId.HasValue ? "Reinigungstyp bearbeiten" : "Reinigungstyp anlegen")</h2>
+                </div>
+                <button class="icon-button" type="button" aria-label="Dialog schließen" @onclick="CloseEditDialog">×</button>
+            </header>
+
+            @if (!string.IsNullOrWhiteSpace(dialogErrorMessage))
+            {
+                <div class="message message-error" role="alert">@dialogErrorMessage</div>
+            }
+
+            <EditForm Model="formModel" OnValidSubmit="SaveAsync" FormName="cleaning-type-form">
+                <DataAnnotationsValidator />
+
+                <div class="form-grid">
+                    <div class="form-field form-field-wide">
+                        <label for="cleaning-type-name">Name</label>
+                        <InputText id="cleaning-type-name" @bind-Value="formModel.Name" />
+                        <ValidationMessage For="() => formModel.Name" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="cleaning-type-code">Kürzel</label>
+                        <InputText id="cleaning-type-code" @bind-Value="formModel.Code" />
+                        <ValidationMessage For="() => formModel.Code" />
+                    </div>
+
+                    <div class="form-field">
+                        <label for="cleaning-type-sort-order">Sortierung</label>
+                        <InputNumber id="cleaning-type-sort-order" @bind-Value="formModel.SortOrder" />
+                        <ValidationMessage For="() => formModel.SortOrder" />
+                    </div>
+
+                    <div class="form-field form-field-wide">
+                        <label for="cleaning-type-description">Beschreibung <span>Optional</span></label>
+                        <InputTextArea id="cleaning-type-description" @bind-Value="formModel.Description" rows="4" />
+                        <ValidationMessage For="() => formModel.Description" />
+                    </div>
+                </div>
+
+                <footer>
+                    <button class="button button-secondary" type="button" @onclick="CloseEditDialog">Abbrechen</button>
+                    <button class="button button-primary" type="submit" disabled="@isSaving">
+                        @(isSaving ? "Wird gespeichert…" : "Speichern")
+                    </button>
+                </footer>
+            </EditForm>
+        </section>
+    </div>
+}
+
+@if (pendingConfirmation is not null)
+{
+    <div class="modal-backdrop" role="presentation">
+        <section class="modal confirmation-modal" role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title">
+            <header>
+                <div>
+                    <p class="eyebrow">Bestätigung</p>
+                    <h2 id="confirm-dialog-title">@pendingConfirmation.Title</h2>
+                </div>
+            </header>
+            <p>@pendingConfirmation.Message</p>
+            @if (pendingConfirmation.Kind == ConfirmationKind.Delete)
+            {
+                <p class="delete-warning">Diese Aktion löscht den Datensatz endgültig und kann nicht rückgängig gemacht werden.</p>
+            }
+            <footer>
+                <button class="button button-secondary" type="button" @onclick="CancelConfirmation">Abbrechen</button>
+                <button class="button @(pendingConfirmation.Kind == ConfirmationKind.Delete ? "button-danger" : "button-primary")"
+                        type="button"
+                        disabled="@isSaving"
+                        @onclick="ExecuteConfirmationAsync">
+                    @(pendingConfirmation.Kind == ConfirmationKind.Delete ? "Endgültig löschen" : "Deaktivieren")
+                </button>
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    private readonly List<CleaningTypeResponse> cleaningTypes = [];
+    private string search = string.Empty;
+    private string statusFilter = "all";
+    private string? errorMessage;
+    private string? feedbackMessage;
+    private string? dialogErrorMessage;
+    private bool isLoading;
+    private bool isSaving;
+    private bool isEditDialogOpen;
+    private Guid? editingId;
+    private UpdateCleaningTypeRequest formModel = new();
+    private PendingConfirmation? pendingConfirmation;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            var result = await ApiClient.GetAllAsync(search, SelectedStatus());
+            cleaningTypes.Clear();
+            cleaningTypes.AddRange(result);
+        }
+        catch (ApiClientException exception)
+        {
+            errorMessage = $"Laden fehlgeschlagen: {exception.Message}";
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Laden fehlgeschlagen: Die Cleanifico API ist nicht erreichbar.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private Task ApplySearchAsync() => LoadAsync();
+
+    private bool? SelectedStatus() => statusFilter switch
+    {
+        "active" => true,
+        "inactive" => false,
+        _ => null
+    };
+
+    private void OpenCreateDialog()
+    {
+        editingId = null;
+        formModel = new UpdateCleaningTypeRequest();
+        dialogErrorMessage = null;
+        isEditDialogOpen = true;
+    }
+
+    private void OpenEditDialog(CleaningTypeResponse cleaningType)
+    {
+        editingId = cleaningType.Id;
+        formModel = new UpdateCleaningTypeRequest
+        {
+            Name = cleaningType.Name,
+            Code = cleaningType.Code,
+            Description = cleaningType.Description,
+            SortOrder = cleaningType.SortOrder
+        };
+        dialogErrorMessage = null;
+        isEditDialogOpen = true;
+    }
+
+    private void CloseEditDialog()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        isEditDialogOpen = false;
+        dialogErrorMessage = null;
+    }
+
+    private async Task SaveAsync()
+    {
+        isSaving = true;
+        dialogErrorMessage = null;
+
+        try
+        {
+            if (editingId.HasValue)
+            {
+                await ApiClient.UpdateAsync(editingId.Value, formModel);
+                feedbackMessage = "Der Reinigungstyp wurde gespeichert.";
+            }
+            else
+            {
+                await ApiClient.CreateAsync(new CreateCleaningTypeRequest
+                {
+                    Name = formModel.Name,
+                    Code = formModel.Code,
+                    Description = formModel.Description,
+                    SortOrder = formModel.SortOrder
+                });
+                feedbackMessage = "Der Reinigungstyp wurde angelegt.";
+            }
+
+            isEditDialogOpen = false;
+            await LoadAsync();
+        }
+        catch (ApiClientException exception)
+        {
+            dialogErrorMessage = $"Speichern fehlgeschlagen: {exception.Message}";
+        }
+        catch (HttpRequestException)
+        {
+            dialogErrorMessage = "Speichern fehlgeschlagen: Die Cleanifico API ist nicht erreichbar.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void ConfirmDeactivate(CleaningTypeResponse cleaningType) =>
+        pendingConfirmation = new PendingConfirmation(
+            cleaningType,
+            ConfirmationKind.Deactivate,
+            "Reinigungstyp deaktivieren",
+            $"Möchten Sie den Reinigungstyp „{cleaningType.Name}“ wirklich deaktivieren?");
+
+    private void ConfirmDelete(CleaningTypeResponse cleaningType) =>
+        pendingConfirmation = new PendingConfirmation(
+            cleaningType,
+            ConfirmationKind.Delete,
+            "Reinigungstyp endgültig löschen",
+            $"Möchten Sie den Reinigungstyp „{cleaningType.Name}“ endgültig löschen?");
+
+    private void CancelConfirmation()
+    {
+        if (!isSaving)
+        {
+            pendingConfirmation = null;
+        }
+    }
+
+    private async Task ExecuteConfirmationAsync()
+    {
+        if (pendingConfirmation is null)
+        {
+            return;
+        }
+
+        var confirmation = pendingConfirmation;
+        isSaving = true;
+        errorMessage = null;
+
+        try
+        {
+            if (confirmation.Kind == ConfirmationKind.Deactivate)
+            {
+                await ApiClient.DeactivateAsync(confirmation.CleaningType.Id);
+                feedbackMessage = "Der Reinigungstyp wurde deaktiviert.";
+            }
+            else
+            {
+                await ApiClient.DeleteAsync(confirmation.CleaningType.Id);
+                feedbackMessage = "Der Reinigungstyp wurde endgültig gelöscht.";
+            }
+
+            pendingConfirmation = null;
+            await LoadAsync();
+        }
+        catch (ApiClientException exception)
+        {
+            pendingConfirmation = null;
+            errorMessage = exception.Message;
+        }
+        catch (HttpRequestException)
+        {
+            pendingConfirmation = null;
+            errorMessage = "Die Cleanifico API ist nicht erreichbar.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ActivateAsync(CleaningTypeResponse cleaningType)
+    {
+        try
+        {
+            await ApiClient.ActivateAsync(cleaningType.Id);
+            feedbackMessage = "Der Reinigungstyp wurde reaktiviert.";
+            await LoadAsync();
+        }
+        catch (ApiClientException exception)
+        {
+            errorMessage = exception.Message;
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Die Cleanifico API ist nicht erreichbar.";
+        }
+    }
+
+    private enum ConfirmationKind
+    {
+        Deactivate,
+        Delete
+    }
+
+    private sealed record PendingConfirmation(
+        CleaningTypeResponse CleaningType,
+        ConfirmationKind Kind,
+        string Title,
+        string Message);
+}

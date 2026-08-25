@@ -14,15 +14,23 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 ## Aktueller technischer Stand
 
 - Solution `Cleanifico.slnx` mit sechs Produkt- und vier Testprojekten auf `net10.0`.
-- API stellt derzeit ausschließlich `GET /health` bereit.
-- Web ist eine minimale Blazor-Web-App mit Server-Interaktivität; sie greift später per HTTP auf die API zu.
-- Fachmodule, Datenbankzugriff, Authentifizierung, Lizenzprüfung und Discovery sind noch nicht implementiert.
-- EF Core, Pomelo und Identity-Persistenz werden erst mit dem ersten echten Persistenzmodul eingebunden.
+- `CleaningType` ist der erste vollständige vertikale Fachschnitt: Domain, Application, Contracts, EF-/MySQL-Persistenz, REST API und Blazor-Seite.
+- `CleanificoDbContext` nutzt EF Core 9.0.19 und Pomelo 9.0.0 mit einem fest konfigurierten MySQL-8.4-Serverprofil.
+- Der Laufzeit-Connection-String wird ausschließlich unter `ConnectionStrings:Cleanifico` erwartet.
+- Die initiale Migration heißt `InitialCleanificoPersistence`; Migrationen werden nicht automatisch beim Hoststart ausgeführt.
+- Die API stellt `GET /health` und CRUD-/Lifecycle-Routen unter `/api/cleaning-types` bereit.
+- Cleanifico Office ruft die API über einen typisierten HTTP-Client auf; die Verwaltungsseite liegt unter `/reinigungstypen`.
+- Authentifizierung, Lizenzprüfung und Discovery sind noch nicht implementiert und vor Produktiveinsatz zwingend nachzuziehen.
 
 ## Zentrale Dateien und Typen
 
-- `src/*/AssemblyReference.cs`: stabile Assembly-Referenzen für Scans und Architekturtests.
-- `src/Cleanifico.Api/ApiApplication.cs`: API-Aufbau, technische Middleware und Health-Endpunkt.
+- `src/Cleanifico.Domain/CleaningTypes/CleaningType.cs`: Entity, Normalisierung und Invarianten.
+- `src/Cleanifico.Application/CleaningTypes`: Application Service und Persistenzabstraktion.
+- `src/Cleanifico.Infrastructure/Persistence/CleanificoDbContext.cs`: zentraler EF Core Context.
+- `src/Cleanifico.Infrastructure/Persistence/Configurations`: Fluent-API-Mappings.
+- `src/Cleanifico.Infrastructure/Persistence/Migrations`: versionierte Schemaänderungen.
+- `src/Cleanifico.Api/ApiApplication.cs`: Composition Root, Fehlerbehandlung und Routenregistrierung.
+- `src/Cleanifico.Web/ApiClients`: typisierte API-Zugriffe ohne Serverprojekt-Abhängigkeit.
 - `tests/Architecture/RepositoryStructure.cs`: gemeinsame Prüfung der Projekt- und Solution-Struktur.
 - `docs/ARCHITECTURE.md`: verbindliche Beschreibung des aktuellen und geplanten Aufbaus.
 - `docs/DECISIONS.md`: akzeptierte Architekturentscheidungen.
@@ -32,6 +40,9 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 - Abhängigkeiten zeigen nach innen; Domain und Contracts kennen keine Infrastruktur.
 - Öffentliche API-Nachrichten gehören nach `Cleanifico.Contracts`.
 - Keine Fachlogik in API, Web oder Infrastructure.
+- Tenant-Isolation erfolgt durch eine eigene Datenbank; Business-Entities tragen derzeit keine zusätzliche `TenantId`.
+- Stammdaten mit späterem Historienbezug werden regulär deaktiviert; physisches Löschen ist nur bei fehlenden Referenzen zulässig.
+- Listen von Reinigungstypen sind standardmäßig nach `SortOrder`, danach `Name` sortiert.
 - Nullable Reference Types und implizite Usings bleiben aktiviert.
 - Keine Template-Demos oder ungenutzten Pakete.
 - Nach jedem abgeschlossenen Prompt: Wissensdateien prüfen und einen Report unter `Reports/` anlegen.
