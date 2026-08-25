@@ -1,7 +1,12 @@
 using Cleanifico.Application.CleaningTypes;
+using Cleanifico.Application.Security;
 using Cleanifico.Infrastructure.Persistence;
 using Cleanifico.Infrastructure.Persistence.Repositories;
+using Cleanifico.Infrastructure.Security.Bootstrap;
+using Cleanifico.Infrastructure.Security.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Cleanifico.Infrastructure;
@@ -15,9 +20,11 @@ public static class DependencyInjection
 
     public static IServiceCollection AddCleanificoInfrastructure(
         this IServiceCollection services,
-        string connectionString)
+        string connectionString,
+        IConfiguration configuration)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
+        ArgumentNullException.ThrowIfNull(configuration);
 
         services.AddDbContext<CleanificoDbContext>(options =>
             options.UseMySql(
@@ -30,6 +37,25 @@ public static class DependencyInjection
                 }));
 
         services.AddScoped<ICleaningTypeRepository, EfCleaningTypeRepository>();
+
+        services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(IdentitySecurityDefaults.Configure)
+            .AddEntityFrameworkStores<CleanificoDbContext>()
+            .AddErrorDescriber<GermanIdentityErrorDescriber>()
+            .AddDefaultTokenProviders();
+
+        services.Configure<DataProtectionTokenProviderOptions>(options =>
+            options.TokenLifespan = TimeSpan.FromHours(2));
+        services.Configure<SecurityStampValidatorOptions>(options =>
+            options.ValidationInterval = TimeSpan.Zero);
+
+        services.AddSingleton<OwnerProtectionGate>();
+        services.AddScoped<IUserAdministrationService, IdentityUserAdministrationService>();
+        services.AddScoped<IUserAuthenticationService, IdentityUserAuthenticationService>();
+        services.AddScoped<IRoleBootstrapper, IdentityRoleBootstrapper>();
+
+        services.Configure<SecurityBootstrapOptions>(
+            configuration.GetSection(SecurityBootstrapOptions.SectionName));
+        services.AddHostedService<IdentityBootstrapHostedService>();
 
         return services;
     }

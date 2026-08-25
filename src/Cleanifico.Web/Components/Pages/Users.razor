@@ -1,0 +1,411 @@
+@page "/administration/benutzer"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = SecurityPolicies.AdministrationAccess)]
+@using System.ComponentModel.DataAnnotations
+@using Cleanifico.Contracts.Users
+@using Cleanifico.Web.ApiClients
+@inject IUsersApiClient ApiClient
+
+<PageTitle>Benutzer | Cleanifico Office</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Administration</p>
+        <h1>Benutzer</h1>
+        <p>Verwalten Sie tenantlokale Zugänge und deren Rollen.</p>
+    </div>
+    <button class="button button-primary" type="button" @onclick="OpenCreateDialog">
+        <span aria-hidden="true">＋</span> Benutzer anlegen
+    </button>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(feedbackMessage))
+{
+    <div class="message message-success" role="status">@feedbackMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="message message-error" role="alert">
+        <span>@errorMessage</span>
+        <button type="button" @onclick="LoadAsync">Erneut versuchen</button>
+    </div>
+}
+
+<section class="content-card">
+    @if (isLoading)
+    {
+        <div class="loading-state" role="status">Benutzer werden geladen…</div>
+    }
+    else if (users.Count == 0)
+    {
+        <div class="empty-state">
+            <strong>Keine Benutzer gefunden</strong>
+            <p>Legen Sie den ersten weiteren Benutzer für diese Cleanifico-Instanz an.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>E-Mail</th>
+                        <th>Rollen</th>
+                        <th>Status</th>
+                        <th class="actions-column">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var user in users)
+                    {
+                        <tr class="@(user.IsActive ? null : "inactive-row")">
+                            <td><strong>@user.FirstName @user.LastName</strong></td>
+                            <td>@user.Email</td>
+                            <td>
+                                <div class="role-list">
+                                    @foreach (var role in user.Roles)
+                                    {
+                                        <span class="role-chip">@SecurityRoles.GetDisplayName(role)</span>
+                                    }
+                                </div>
+                            </td>
+                            <td>
+                                <span class="status-badge @(user.IsActive ? "active" : "inactive")">
+                                    @(user.IsActive ? "Aktiv" : "Inaktiv")
+                                </span>
+                            </td>
+                            <td>
+                                <div class="row-actions">
+                                    <button type="button" @onclick="() => OpenEditDialog(user)">Bearbeiten</button>
+                                    @if (user.IsActive)
+                                    {
+                                        <button type="button" @onclick="() => ConfirmDeactivate(user)">Deaktivieren</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" @onclick="() => ActivateAsync(user)">Aktivieren</button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (isEditDialogOpen)
+{
+    <div class="modal-backdrop" role="presentation">
+        <section class="modal user-modal" role="dialog" aria-modal="true" aria-labelledby="user-dialog-title">
+            <header>
+                <div>
+                    <p class="eyebrow">Benutzerkonto</p>
+                    <h2 id="user-dialog-title">@(editingId.HasValue ? "Benutzer bearbeiten" : "Benutzer anlegen")</h2>
+                </div>
+                <button class="icon-button" type="button" aria-label="Dialog schließen" @onclick="CloseDialog">×</button>
+            </header>
+
+            @if (!string.IsNullOrWhiteSpace(dialogErrorMessage))
+            {
+                <div class="message message-error" role="alert">@dialogErrorMessage</div>
+            }
+
+            <EditForm Model="formModel" OnValidSubmit="SaveAsync" FormName="user-form">
+                <DataAnnotationsValidator />
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="user-first-name">Vorname</label>
+                        <InputText id="user-first-name" @bind-Value="formModel.FirstName" />
+                        <ValidationMessage For="() => formModel.FirstName" />
+                    </div>
+                    <div class="form-field">
+                        <label for="user-last-name">Nachname</label>
+                        <InputText id="user-last-name" @bind-Value="formModel.LastName" />
+                        <ValidationMessage For="() => formModel.LastName" />
+                    </div>
+                    <div class="form-field form-field-wide">
+                        <label for="user-email">E-Mail</label>
+                        <InputText id="user-email" type="email" @bind-Value="formModel.Email" />
+                        <ValidationMessage For="() => formModel.Email" />
+                    </div>
+
+                    @if (!editingId.HasValue)
+                    {
+                        <div class="form-field form-field-wide">
+                            <label for="user-password">Initialpasswort</label>
+                            <InputText id="user-password" type="password" autocomplete="new-password" @bind-Value="formModel.Password" />
+                            <p class="field-hint">Mindestens 12 Zeichen sowie Groß-/Kleinbuchstaben, Ziffer und Sonderzeichen.</p>
+                        </div>
+                    }
+
+                    <fieldset class="form-field form-field-wide role-selector">
+                        <legend>Rollen</legend>
+                        @foreach (var role in roles)
+                        {
+                            <label>
+                                <input type="checkbox"
+                                       checked="@formModel.Roles.Contains(role.Name, StringComparer.Ordinal)"
+                                       @onchange="eventArgs => ToggleRole(role.Name, eventArgs)" />
+                                <span><strong>@role.DisplayName</strong><small>@role.Name</small></span>
+                            </label>
+                        }
+                    </fieldset>
+
+                    <label class="active-toggle form-field-wide">
+                        <InputCheckbox @bind-Value="formModel.IsActive" />
+                        <span>Benutzerkonto ist aktiv</span>
+                    </label>
+                </div>
+
+                <footer>
+                    <button class="button button-secondary" type="button" @onclick="CloseDialog">Abbrechen</button>
+                    <button class="button button-primary" type="submit" disabled="@isSaving">
+                        @(isSaving ? "Wird gespeichert…" : "Speichern")
+                    </button>
+                </footer>
+            </EditForm>
+        </section>
+    </div>
+}
+
+@if (pendingDeactivation is not null)
+{
+    <div class="modal-backdrop" role="presentation">
+        <section class="modal confirmation-modal" role="alertdialog" aria-modal="true" aria-labelledby="deactivate-user-title">
+            <header><h2 id="deactivate-user-title">Benutzer deaktivieren</h2></header>
+            <p>Möchten Sie „@pendingDeactivation.FirstName @pendingDeactivation.LastName“ wirklich deaktivieren?</p>
+            <p class="field-hint">Die bestehende Anmeldung verliert ihre API-Berechtigung.</p>
+            <footer>
+                <button class="button button-secondary" type="button" @onclick="CancelDeactivation">Abbrechen</button>
+                <button class="button button-primary" type="button" disabled="@isSaving" @onclick="DeactivateAsync">Deaktivieren</button>
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    private readonly List<UserResponse> users = [];
+    private readonly List<RoleResponse> roles = [];
+    private UserFormModel formModel = new();
+    private Guid? editingId;
+    private UserResponse? pendingDeactivation;
+    private string? errorMessage;
+    private string? feedbackMessage;
+    private string? dialogErrorMessage;
+    private bool isLoading;
+    private bool isSaving;
+    private bool isEditDialogOpen;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        try
+        {
+            var usersTask = ApiClient.GetAllAsync();
+            var rolesTask = ApiClient.GetRolesAsync();
+            await Task.WhenAll(usersTask, rolesTask);
+            users.Clear();
+            users.AddRange(await usersTask);
+            roles.Clear();
+            roles.AddRange(await rolesTask);
+        }
+        catch (ApiClientException exception)
+        {
+            errorMessage = $"Laden fehlgeschlagen: {exception.Message}";
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Laden fehlgeschlagen: Die Cleanifico API ist nicht erreichbar.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OpenCreateDialog()
+    {
+        editingId = null;
+        formModel = new UserFormModel { IsActive = true };
+        dialogErrorMessage = null;
+        isEditDialogOpen = true;
+    }
+
+    private void OpenEditDialog(UserResponse user)
+    {
+        editingId = user.Id;
+        formModel = new UserFormModel
+        {
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            IsActive = user.IsActive,
+            Roles = [.. user.Roles]
+        };
+        dialogErrorMessage = null;
+        isEditDialogOpen = true;
+    }
+
+    private void CloseDialog()
+    {
+        if (!isSaving)
+        {
+            isEditDialogOpen = false;
+        }
+    }
+
+    private void ToggleRole(string role, ChangeEventArgs eventArgs)
+    {
+        var selected = eventArgs.Value is true;
+        if (selected && !formModel.Roles.Contains(role, StringComparer.Ordinal))
+        {
+            formModel.Roles.Add(role);
+        }
+        else if (!selected)
+        {
+            formModel.Roles.Remove(role);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (formModel.Roles.Count == 0)
+        {
+            dialogErrorMessage = "Mindestens eine Rolle ist erforderlich.";
+            return;
+        }
+
+        if (!editingId.HasValue && string.IsNullOrWhiteSpace(formModel.Password))
+        {
+            dialogErrorMessage = "Das Initialpasswort ist erforderlich.";
+            return;
+        }
+
+        isSaving = true;
+        dialogErrorMessage = null;
+        try
+        {
+            if (editingId.HasValue)
+            {
+                await ApiClient.UpdateAsync(editingId.Value, new UpdateUserRequest
+                {
+                    FirstName = formModel.FirstName,
+                    LastName = formModel.LastName,
+                    Email = formModel.Email,
+                    IsActive = formModel.IsActive
+                });
+                await ApiClient.UpdateRolesAsync(editingId.Value, new UpdateUserRolesRequest
+                {
+                    Roles = [.. formModel.Roles]
+                });
+                feedbackMessage = "Der Benutzer wurde gespeichert.";
+            }
+            else
+            {
+                await ApiClient.CreateAsync(new CreateUserRequest
+                {
+                    FirstName = formModel.FirstName,
+                    LastName = formModel.LastName,
+                    Email = formModel.Email,
+                    Password = formModel.Password,
+                    Roles = [.. formModel.Roles],
+                    IsActive = formModel.IsActive
+                });
+                feedbackMessage = "Der Benutzer wurde angelegt.";
+            }
+
+            isEditDialogOpen = false;
+            await LoadAsync();
+        }
+        catch (ApiClientException exception)
+        {
+            dialogErrorMessage = $"Speichern fehlgeschlagen: {exception.Message}";
+        }
+        catch (HttpRequestException)
+        {
+            dialogErrorMessage = "Speichern fehlgeschlagen: Die Cleanifico API ist nicht erreichbar.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void ConfirmDeactivate(UserResponse user) => pendingDeactivation = user;
+    private void CancelDeactivation() => pendingDeactivation = null;
+
+    private async Task DeactivateAsync()
+    {
+        if (pendingDeactivation is null)
+        {
+            return;
+        }
+
+        isSaving = true;
+        try
+        {
+            await ApiClient.DeactivateAsync(pendingDeactivation.Id);
+            feedbackMessage = "Der Benutzer wurde deaktiviert.";
+            pendingDeactivation = null;
+            await LoadAsync();
+        }
+        catch (ApiClientException exception)
+        {
+            pendingDeactivation = null;
+            errorMessage = exception.Message;
+        }
+        catch (HttpRequestException)
+        {
+            pendingDeactivation = null;
+            errorMessage = "Die Cleanifico API ist nicht erreichbar.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ActivateAsync(UserResponse user)
+    {
+        try
+        {
+            await ApiClient.ActivateAsync(user.Id);
+            feedbackMessage = "Der Benutzer wurde aktiviert.";
+            await LoadAsync();
+        }
+        catch (ApiClientException exception)
+        {
+            errorMessage = exception.Message;
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Die Cleanifico API ist nicht erreichbar.";
+        }
+    }
+
+    private sealed class UserFormModel
+    {
+        [Required(ErrorMessage = "Der Vorname ist erforderlich.")]
+        [StringLength(100, ErrorMessage = "Der Vorname darf höchstens 100 Zeichen lang sein.")]
+        public string FirstName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Der Nachname ist erforderlich.")]
+        [StringLength(100, ErrorMessage = "Der Nachname darf höchstens 100 Zeichen lang sein.")]
+        public string LastName { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Die E-Mail-Adresse ist erforderlich.")]
+        [EmailAddress(ErrorMessage = "Bitte geben Sie eine gültige E-Mail-Adresse ein.")]
+        public string Email { get; set; } = string.Empty;
+
+        public string Password { get; set; } = string.Empty;
+        public List<string> Roles { get; set; } = [];
+        public bool IsActive { get; set; }
+    }
+}

@@ -1,5 +1,6 @@
 @page "/reinigungstypen"
 @rendermode InteractiveServer
+@attribute [Authorize(Policy = SecurityPolicies.ViewCleaningTypes)]
 @using Cleanifico.Contracts.CleaningTypes
 @using Cleanifico.Web.ApiClients
 @inject ICleaningTypesApiClient ApiClient
@@ -12,9 +13,11 @@
         <h1>Reinigungstypen</h1>
         <p>Verwalten Sie die Reinigungsarten Ihres Unternehmens.</p>
     </div>
-    <button class="button button-primary" type="button" @onclick="OpenCreateDialog">
-        <span aria-hidden="true">＋</span> Reinigungstyp anlegen
-    </button>
+    <AuthorizeView Policy="@SecurityPolicies.ManageCleaningTypes">
+        <button class="button button-primary" type="button" @onclick="OpenCreateDialog">
+            <span aria-hidden="true">＋</span> Reinigungstyp anlegen
+        </button>
+    </AuthorizeView>
 </section>
 
 @if (!string.IsNullOrWhiteSpace(feedbackMessage))
@@ -89,20 +92,25 @@
                                 </span>
                             </td>
                             <td>
-                                <div class="row-actions">
-                                    <button type="button" @onclick="() => OpenEditDialog(cleaningType)">Bearbeiten</button>
-                                    @if (cleaningType.IsActive)
-                                    {
-                                        <button type="button" @onclick="() => ConfirmDeactivate(cleaningType)">Deaktivieren</button>
-                                    }
-                                    else
-                                    {
-                                        <button type="button" @onclick="() => ActivateAsync(cleaningType)">Reaktivieren</button>
-                                    }
-                                    <button class="danger-action" type="button" @onclick="() => ConfirmDelete(cleaningType)">
-                                        Endgültig löschen
-                                    </button>
-                                </div>
+                                <AuthorizeView Policy="@SecurityPolicies.ManageCleaningTypes">
+                                    <Authorized>
+                                        <div class="row-actions">
+                                            <button type="button" @onclick="() => OpenEditDialog(cleaningType)">Bearbeiten</button>
+                                            @if (cleaningType.IsActive)
+                                            {
+                                                <button type="button" @onclick="() => ConfirmDeactivate(cleaningType)">Deaktivieren</button>
+                                            }
+                                            else
+                                            {
+                                                <button type="button" @onclick="() => ActivateAsync(cleaningType)">Reaktivieren</button>
+                                            }
+                                            <button class="danger-action" type="button" @onclick="() => ConfirmDelete(cleaningType)">
+                                                Endgültig löschen
+                                            </button>
+                                        </div>
+                                    </Authorized>
+                                    <NotAuthorized>—</NotAuthorized>
+                                </AuthorizeView>
                             </td>
                         </tr>
                     }

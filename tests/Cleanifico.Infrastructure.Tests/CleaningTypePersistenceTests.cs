@@ -1,5 +1,6 @@
 using Cleanifico.Domain.CleaningTypes;
 using Cleanifico.Infrastructure.Persistence;
+using Cleanifico.Infrastructure.Security.Identity;
 using Microsoft.EntityFrameworkCore;
 
 namespace Cleanifico.Infrastructure.Tests;
@@ -58,5 +59,21 @@ public sealed class CleaningTypePersistenceTests
         Assert.Contains(entityType.GetIndexes(), index =>
             index.Properties.Select(property => property.Name).SequenceEqual(
                 [nameof(CleaningType.IsActive), nameof(CleaningType.SortOrder), nameof(CleaningType.Name)]));
+    }
+
+    [Fact]
+    public void Model_MapsApplicationUserFieldsAndUniqueEmailIndex()
+    {
+        using var context = CreateContext();
+        var entityType = context.Model.FindEntityType(typeof(ApplicationUser));
+
+        Assert.NotNull(entityType);
+        Assert.Equal("AspNetUsers", entityType.GetTableName());
+        Assert.False(entityType.FindProperty(nameof(ApplicationUser.FirstName))?.IsNullable);
+        Assert.False(entityType.FindProperty(nameof(ApplicationUser.LastName))?.IsNullable);
+        Assert.False(entityType.FindProperty(nameof(ApplicationUser.IsActive))?.IsNullable);
+        Assert.Contains(entityType.GetIndexes(), index =>
+            index.IsUnique
+            && index.Properties.Select(property => property.Name).SequenceEqual([nameof(ApplicationUser.NormalizedEmail)]));
     }
 }

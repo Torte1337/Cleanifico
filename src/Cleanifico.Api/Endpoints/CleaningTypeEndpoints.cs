@@ -1,5 +1,6 @@
 using Cleanifico.Application.CleaningTypes;
 using Cleanifico.Contracts.CleaningTypes;
+using Cleanifico.Contracts.Security;
 using Cleanifico.Domain.CleaningTypes;
 
 namespace Cleanifico.Api.Endpoints;
@@ -11,13 +12,21 @@ public static class CleaningTypeEndpoints
         var group = endpoints.MapGroup("/api/cleaning-types")
             .WithTags("Cleaning Types");
 
-        group.MapGet("", GetAllAsync);
-        group.MapGet("/{id:guid}", GetByIdAsync).WithName("GetCleaningType");
-        group.MapPost("", CreateAsync);
-        group.MapPut("/{id:guid}", UpdateAsync);
-        group.MapPost("/{id:guid}/activate", ActivateAsync);
-        group.MapPost("/{id:guid}/deactivate", DeactivateAsync);
-        group.MapDelete("/{id:guid}", DeleteAsync);
+        group.MapGet("", GetAllAsync)
+            .RequireAuthorization(SecurityPolicies.ViewCleaningTypes);
+        group.MapGet("/{id:guid}", GetByIdAsync)
+            .WithName("GetCleaningType")
+            .RequireAuthorization(SecurityPolicies.ViewCleaningTypes);
+        group.MapPost("", CreateAsync)
+            .RequireAuthorization(SecurityPolicies.ManageCleaningTypes);
+        group.MapPut("/{id:guid}", UpdateAsync)
+            .RequireAuthorization(SecurityPolicies.ManageCleaningTypes);
+        group.MapPost("/{id:guid}/activate", ActivateAsync)
+            .RequireAuthorization(SecurityPolicies.ManageCleaningTypes);
+        group.MapPost("/{id:guid}/deactivate", DeactivateAsync)
+            .RequireAuthorization(SecurityPolicies.ManageCleaningTypes);
+        group.MapDelete("/{id:guid}", DeleteAsync)
+            .RequireAuthorization(SecurityPolicies.ManageCleaningTypes);
 
         return endpoints;
     }

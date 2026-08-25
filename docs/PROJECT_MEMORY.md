@@ -13,14 +13,17 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 
 ## Aktueller technischer Stand
 
-- Solution `Cleanifico.slnx` mit sechs Produkt- und vier Testprojekten auf `net10.0`.
+- Solution `Cleanifico.slnx` mit sechs Produkt- und fünf Testprojekten auf `net10.0`.
 - `CleaningType` ist der erste vollständige vertikale Fachschnitt: Domain, Application, Contracts, EF-/MySQL-Persistenz, REST API und Blazor-Seite.
 - `CleanificoDbContext` nutzt EF Core 9.0.19 und Pomelo 9.0.0 mit einem fest konfigurierten MySQL-8.4-Serverprofil.
 - Der Laufzeit-Connection-String wird ausschließlich unter `ConnectionStrings:Cleanifico` erwartet.
-- Die initiale Migration heißt `InitialCleanificoPersistence`; Migrationen werden nicht automatisch beim Hoststart ausgeführt.
-- Die API stellt `GET /health` und CRUD-/Lifecycle-Routen unter `/api/cleaning-types` bereit.
-- Cleanifico Office ruft die API über einen typisierten HTTP-Client auf; die Verwaltungsseite liegt unter `/reinigungstypen`.
-- Authentifizierung, Lizenzprüfung und Discovery sind noch nicht implementiert und vor Produktiveinsatz zwingend nachzuziehen.
+- Die Migrationen heißen `InitialCleanificoPersistence` und `AddTenantIdentity`; sie werden nicht automatisch beim Hoststart ausgeführt.
+- `ApplicationUser` und ASP.NET Core Identity liegen ohne zusätzliche `TenantId` in derselben tenantlokalen Datenbank. Benutzername ist die normalisierte, eindeutige E-Mail; Profile führen Vorname, Nachname, Aktivstatus und UTC-Auditzeiten.
+- Rollen: `Owner`, `Administrator`, `Dispatcher`, `ObjectManager`, `Employee`. Zentrale Policies: `OfficeAccess`, `ViewCleaningTypes`, `ManageCleaningTypes`, `ManageUsers`, `ManageRoles`, `AdministrationAccess` sowie die interne Aktivitätsprüfung.
+- API und Web verwenden einen gemeinsamen verschlüsselten Identity-Cookie und Data-Protection-Schlüsselbund. Inaktive Benutzer werden bei Anmeldung und laufender Autorisierung abgewiesen.
+- Cleanifico Office stellt `/login`, `/zugriff-verweigert`, `/reinigungstypen` und `/administration/benutzer` bereit; eine öffentliche Registrierung existiert nicht.
+- Rollen werden beim Start idempotent angelegt. Ein erster Owner entsteht nur durch explizite Secret-/Konfigurationswerte ohne fest codiertes Passwort.
+- Lizenzprüfung und Discovery sind weiterhin nicht implementiert.
 
 ## Zentrale Dateien und Typen
 
@@ -29,6 +32,8 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 - `src/Cleanifico.Infrastructure/Persistence/CleanificoDbContext.cs`: zentraler EF Core Context.
 - `src/Cleanifico.Infrastructure/Persistence/Configurations`: Fluent-API-Mappings.
 - `src/Cleanifico.Infrastructure/Persistence/Migrations`: versionierte Schemaänderungen.
+- `src/Cleanifico.Infrastructure/Security`: Identity-Persistenz, Benutzerverwaltung, Bootstrap und Active-User-Prüfung.
+- `src/Cleanifico.Contracts/Security`: zentrale Rollen-, Policy- und Cookie-Namen.
 - `src/Cleanifico.Api/ApiApplication.cs`: Composition Root, Fehlerbehandlung und Routenregistrierung.
 - `src/Cleanifico.Web/ApiClients`: typisierte API-Zugriffe ohne Serverprojekt-Abhängigkeit.
 - `tests/Architecture/RepositoryStructure.cs`: gemeinsame Prüfung der Projekt- und Solution-Struktur.
@@ -41,6 +46,8 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 - Öffentliche API-Nachrichten gehören nach `Cleanifico.Contracts`.
 - Keine Fachlogik in API, Web oder Infrastructure.
 - Tenant-Isolation erfolgt durch eine eigene Datenbank; Business-Entities tragen derzeit keine zusätzliche `TenantId`.
+- Benutzerkonten und spätere fachliche Mitarbeiterdatensätze sind getrennte Konzepte; eine Zuordnung wird erst mit konkreten Anforderungen eingeführt.
+- Der letzte aktive Owner darf weder deaktiviert werden noch die Owner-Rolle verlieren.
 - Stammdaten mit späterem Historienbezug werden regulär deaktiviert; physisches Löschen ist nur bei fehlenden Referenzen zulässig.
 - Listen von Reinigungstypen sind standardmäßig nach `SortOrder`, danach `Name` sortiert.
 - Nullable Reference Types und implizite Usings bleiben aktiviert.

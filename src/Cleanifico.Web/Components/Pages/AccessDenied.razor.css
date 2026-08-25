@@ -1,0 +1,9 @@
+.access-denied {
+    margin: 4rem auto;
+    max-width: 620px;
+    padding: 3rem;
+    text-align: center;
+}
+
+.access-denied h1 { color: #183c37; margin: .3rem 0 .75rem; }
+.access-denied p:not(.eyebrow) { color: #5e7470; margin-bottom: 1.7rem; }

@@ -1,0 +1,66 @@
+@page "/login"
+@attribute [AllowAnonymous]
+@layout LoginLayout
+
+<PageTitle>Anmelden | Cleanifico Office</PageTitle>
+
+<section class="login-card">
+    <div class="login-brand">
+        <span class="brand-mark">C</span>
+        <div>
+            <strong>Cleanifico</strong>
+            <span>Office</span>
+        </div>
+    </div>
+
+    <div class="login-heading">
+        <p class="eyebrow">Willkommen zurück</p>
+        <h1>Anmelden</h1>
+        <p>Melden Sie sich mit Ihrem tenantlokalen Benutzerkonto an.</p>
+    </div>
+
+    @if (string.Equals(Error, "invalid", StringComparison.Ordinal))
+    {
+        <div class="message message-error" role="alert">
+            E-Mail oder Passwort ist ungültig.
+        </div>
+    }
+    else if (string.Equals(Error, "unavailable", StringComparison.Ordinal))
+    {
+        <div class="message message-error" role="alert">
+            Cleanifico API ist derzeit nicht erreichbar. Bitte versuchen Sie es später erneut.
+        </div>
+    }
+
+    <form method="post" action="/auth/login" class="login-form">
+        <AntiforgeryToken />
+        <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+
+        <label>
+            <span>E-Mail</span>
+            <input name="Email" type="email" autocomplete="username" required autofocus />
+        </label>
+
+        <label>
+            <span>Passwort</span>
+            <input name="Password" type="password" autocomplete="current-password" required />
+        </label>
+
+        <label class="remember-me">
+            <input name="RememberMe" type="checkbox" value="true" />
+            <span>Angemeldet bleiben</span>
+        </label>
+
+        <button class="button button-primary" type="submit">Anmelden</button>
+    </form>
+
+    <p class="login-note">Benutzerkonten werden durch Ihre Cleanifico-Administration bereitgestellt.</p>
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+}

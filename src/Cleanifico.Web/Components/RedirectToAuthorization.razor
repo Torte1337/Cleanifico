@@ -1,0 +1,20 @@
+@inject NavigationManager Navigation
+
+@code {
+    [Parameter, EditorRequired]
+    public AuthenticationState AuthenticationState { get; set; } = default!;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        var destination = AuthenticationState.User.Identity?.IsAuthenticated == true
+            ? "/zugriff-verweigert"
+            : $"/login?returnUrl={Uri.EscapeDataString(new Uri(Navigation.Uri).PathAndQuery)}";
+
+        Navigation.NavigateTo(destination, forceLoad: true);
+    }
+}

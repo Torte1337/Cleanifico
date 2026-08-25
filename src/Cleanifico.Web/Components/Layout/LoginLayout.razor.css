@@ -1,0 +1,10 @@
+.login-shell {
+    align-items: center;
+    background:
+        radial-gradient(circle at 15% 15%, rgba(52, 211, 153, .16), transparent 34rem),
+        linear-gradient(145deg, #071c1a 0%, #0b2a27 52%, #123c36 100%);
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 2rem;
+}

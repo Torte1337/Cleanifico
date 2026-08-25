@@ -45,7 +45,8 @@ public sealed class ApiArchitectureTests
             "Cleanifico.Domain.Tests",
             "Cleanifico.Infrastructure",
             "Cleanifico.Infrastructure.Tests",
-            "Cleanifico.Web"
+            "Cleanifico.Web",
+            "Cleanifico.Web.Tests"
         ];
 
         var actual = RepositoryStructure.ReadSolutionProjects();

@@ -149,3 +149,53 @@ Entscheidung: Die API führt beim normalen Start weder `EnsureCreated` noch auto
 Grund: Jede Tenant-Datenbank muss gezielt, beobachtbar und ohne ungefragte destruktive Startaktion aktualisiert werden können.
 
 Datum: 2026-08-25
+
+## DEC-016 – Tenantlokales ASP.NET Core Identity
+
+Status: Accepted
+
+Entscheidung: `ApplicationUser`, Rollen und Identity-Tabellen liegen im bestehenden tenantlokalen `CleanificoDbContext`; es gibt keine zusätzliche `TenantId`.
+
+Grund: Die eigene Instanz und Datenbank bilden bereits die Tenantgrenze und erlauben die Standardmechanismen von ASP.NET Core Identity.
+
+Datum: 2026-08-25
+
+## DEC-017 – Zentrale Rollen und Policies
+
+Status: Accepted
+
+Entscheidung: Zugriff wird über die festen Rollen `Owner`, `Administrator`, `Dispatcher`, `ObjectManager`, `Employee` und zentrale Authorization Policies gesteuert. Eine Active-User-Anforderung gilt als API-Fallback.
+
+Grund: Einheitliche Policies vermeiden verstreute Rollenlogik und verhindern den Zugriff deaktivierter Konten.
+
+Datum: 2026-08-25
+
+## DEC-018 – Gemeinsamer Identity-Cookie für Office und API
+
+Status: Accepted
+
+Entscheidung: Die getrennten Office- und API-Hosts verwenden einen gemeinsamen sicheren Identity-Cookie und Data-Protection-Keyring. Für Mobile wird später ein eigener Bearer-Flow entworfen.
+
+Grund: Office erhält eine serverseitige, widerrufbare Sitzung ohne eine vorgezogene JWT- oder Mobile-Architektur.
+
+Datum: 2026-08-25
+
+## DEC-019 – Expliziter Bootstrap ohne Standardpasswort
+
+Status: Accepted
+
+Entscheidung: Rollen werden idempotent angelegt; der erste Owner wird nur bei explizit aktivierter Konfiguration mit extern bereitgestelltem Initialpasswort erzeugt. Es gibt keine öffentliche Registrierung.
+
+Grund: Ein fest codiertes oder automatisch bekanntes Administrationspasswort wäre ein vermeidbares Übernahmerisiko.
+
+Datum: 2026-08-25
+
+## DEC-020 – Schutz des letzten aktiven Owners
+
+Status: Accepted
+
+Entscheidung: Der letzte aktive Owner kann weder deaktiviert werden noch seine Owner-Rolle verlieren. Benutzerkonten werden deaktiviert statt physisch gelöscht.
+
+Grund: Ein Tenant darf sich nicht selbst aus der Administration aussperren; die Kontohistorie bleibt erhalten.
+
+Datum: 2026-08-25

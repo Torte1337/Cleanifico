@@ -1,10 +1,13 @@
 using System.Net.Http.Json;
 using System.Text.Json;
 using Cleanifico.Contracts.CleaningTypes;
+using Cleanifico.Web.Authentication;
 
 namespace Cleanifico.Web.ApiClients;
 
-public sealed class CleaningTypesApiClient(HttpClient httpClient) : ICleaningTypesApiClient
+public sealed class CleaningTypesApiClient(
+    HttpClient httpClient,
+    IOfficeApiRequestAuthenticator requestAuthenticator) : ICleaningTypesApiClient
 {
     public async Task<IReadOnlyList<CleaningTypeResponse>> GetAllAsync(
         string? search,
@@ -27,7 +30,7 @@ public sealed class CleaningTypesApiClient(HttpClient httpClient) : ICleaningTyp
             ? "api/cleaning-types"
             : $"api/cleaning-types?{string.Join('&', query)}";
 
-        using var response = await httpClient.GetAsync(path, cancellationToken);
+        using var response = await SendAsync(HttpMethod.Get, path, null, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
 
         return await response.Content.ReadFromJsonAsync<List<CleaningTypeResponse>>(
@@ -38,7 +41,8 @@ public sealed class CleaningTypesApiClient(HttpClient httpClient) : ICleaningTyp
         CreateCleaningTypeRequest request,
         CancellationToken cancellationToken = default)
     {
-        using var response = await httpClient.PostAsJsonAsync(
+        using var response = await SendAsync(
+            HttpMethod.Post,
             "api/cleaning-types",
             request,
             cancellationToken);
@@ -52,7 +56,8 @@ public sealed class CleaningTypesApiClient(HttpClient httpClient) : ICleaningTyp
         UpdateCleaningTypeRequest request,
         CancellationToken cancellationToken = default)
     {
-        using var response = await httpClient.PutAsJsonAsync(
+        using var response = await SendAsync(
+            HttpMethod.Put,
             $"api/cleaning-types/{id}",
             request,
             cancellationToken);
@@ -69,8 +74,10 @@ public sealed class CleaningTypesApiClient(HttpClient httpClient) : ICleaningTyp
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        using var response = await httpClient.DeleteAsync(
+        using var response = await SendAsync(
+            HttpMethod.Delete,
             $"api/cleaning-types/{id}",
+            null,
             cancellationToken);
 
         await EnsureSuccessAsync(response, cancellationToken);
@@ -78,8 +85,25 @@ public sealed class CleaningTypesApiClient(HttpClient httpClient) : ICleaningTyp
 
     private async Task PostActionAsync(string path, CancellationToken cancellationToken)
     {
-        using var response = await httpClient.PostAsync(path, null, cancellationToken);
+        using var response = await SendAsync(HttpMethod.Post, path, null, cancellationToken);
         await EnsureSuccessAsync(response, cancellationToken);
+    }
+
+    private async Task<HttpResponseMessage> SendAsync(
+        HttpMethod method,
+        string path,
+        object? content,
+        CancellationToken cancellationToken)
+    {
+        using var request = new HttpRequestMessage(method, path);
+        if (content is not null)
+        {
+            request.Content = JsonContent.Create(content);
+        }
+
+        await requestAuthenticator.ApplyAsync(request, cancellationToken);
+        request.Headers.TryAddWithoutValidation("X-Cleanifico-Office", "1");
+        return await httpClient.SendAsync(request, cancellationToken);
     }
 
     private static async Task<CleaningTypeResponse> ReadResponseAsync(

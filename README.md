@@ -7,12 +7,12 @@ Cleanifico ist eine mandantenfähige Betriebssoftware für Gebäudereinigungsunt
 - .NET 10 (`net10.0`), SDK-Familie über `global.json` festgelegt
 - Clean-Architecture-orientierte Schichten ohne zyklische Abhängigkeiten
 - EF Core 9.0.19 mit stabilem Pomelo-MySQL-Provider 9.0.0 für MySQL 8.4
-- `CleanificoDbContext` und initiale Migration `InitialCleanificoPersistence`
+- `CleanificoDbContext`, tenantlokales ASP.NET Core Identity und Migrationen `InitialCleanificoPersistence` sowie `AddTenantIdentity`
 - erster vertikaler Fachschnitt `CleaningType` mit Domain-Regeln, Application Service, REST API und Blazor-Verwaltung
-- separate ASP.NET Core API mit `GET /health` und `/api/cleaning-types`
-- separate Blazor-Web-App für Cleanifico Office mit Seite `/reinigungstypen`
-- vier xUnit-Testprojekte mit Domain-, Application-, EF-Metadaten-, Architektur- und HTTP-Integrationstests
-- noch keine Authentifizierung, Lizenzprüfung oder externen Integrationen
+- separate ASP.NET Core API mit geschützten Cleaning-Type- und Benutzer-Endpunkten; nur `GET /health` und Login sind anonym erreichbar
+- separate Blazor-Web-App für Cleanifico Office mit Login, `/reinigungstypen` und `/administration/benutzer`
+- fünf xUnit-Testprojekte mit Domain-, Application-, Identity-, EF-, Architektur-, API- und Web-Integrationstests
+- noch keine Lizenzprüfung, Discovery-, Mobile- oder sonstigen externen Integrationen
 
 ## Projektstruktur
 
@@ -53,6 +53,22 @@ dotnet run --project src/Cleanifico.Web
 
 Die Development-Konfiguration der Web-App erwartet die API unter `https://localhost:7182`; die Web-App selbst startet standardmäßig unter `https://localhost:7282`.
 
+## Tenantlokale Anmeldung
+
+Identity liegt in derselben tenantlokalen Datenbank wie die Fachdaten. Die Rollen sind `Owner`, `Administrator`, `Dispatcher`, `ObjectManager` und `Employee`. Cleanifico Office bietet keine öffentliche Registrierung; Benutzer werden unter `/administration/benutzer` durch Owner oder Administrator verwaltet.
+
+Beim Start werden die Rollen idempotent angelegt. Der erste Owner wird nur nach expliziter Aktivierung und ohne Standardpasswort erzeugt. Lokale Werte gehören in User Secrets:
+
+```bash
+dotnet user-secrets set --project src/Cleanifico.Api "SecurityBootstrap:Owner:Enabled" "true"
+dotnet user-secrets set --project src/Cleanifico.Api "SecurityBootstrap:Owner:Email" "owner@example.test"
+dotnet user-secrets set --project src/Cleanifico.Api "SecurityBootstrap:Owner:FirstName" "Erika"
+dotnet user-secrets set --project src/Cleanifico.Api "SecurityBootstrap:Owner:LastName" "Muster"
+dotnet user-secrets set --project src/Cleanifico.Api "SecurityBootstrap:Owner:InitialPassword" "<sicheres-einmaliges-passwort>"
+```
+
+Nach erfolgreichem Bootstrap ist die Owner-Option wieder zu deaktivieren und das Initialpasswort aus dem Secret Store zu entfernen. API und Web teilen den geschützten Identity-Cookie-Schlüsselbund. `Authentication:DataProtectionKeysPath` muss bei getrennten Hosts auf denselben persistenten Pfad zeigen; produktiv sind Zugriffsschutz und Verschlüsselung des Schlüsselbunds durch die Deploymentumgebung sicherzustellen.
+
 ## Datenbankmigrationen
 
 Migrationen werden kontrolliert ausgeführt. Die Anwendung migriert beim Start keine Datenbank automatisch. Eine lokale Datenbank kann mit einem expliziten, nicht eingecheckten Connection String aktualisiert werden:
@@ -89,7 +105,7 @@ Der Design-Time-Context verwendet ohne explizite Zielverbindung nur eine nicht f
 | `POST` | `/api/cleaning-types/{id}/deactivate` | Deaktivieren |
 | `DELETE` | `/api/cleaning-types/{id}` | Unreferenzierten Datensatz endgültig löschen |
 
-Die Fachendpunkte sind noch nicht authentifiziert und müssen vor einem produktiven Einsatz abgesichert werden.
+Lesen erfordert `Owner`, `Administrator`, `Dispatcher` oder `ObjectManager`; Schreiben ist auf `Owner` und `Administrator` beschränkt. Anonyme Zugriffe erhalten `401`, angemeldete Benutzer ohne Berechtigung `403`.
 
 ## Dokumentation
 

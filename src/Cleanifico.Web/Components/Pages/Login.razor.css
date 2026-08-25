@@ -1,0 +1,45 @@
+.login-card {
+    background: #fff;
+    border: 1px solid rgba(255, 255, 255, .42);
+    border-radius: 22px;
+    box-shadow: 0 28px 80px rgba(0, 0, 0, .28);
+    max-width: 460px;
+    padding: 2.6rem;
+    width: 100%;
+}
+
+.login-brand {
+    align-items: center;
+    color: #102a27;
+    display: flex;
+    gap: .8rem;
+    margin-bottom: 2.5rem;
+}
+
+.login-brand .brand-mark {
+    background: #0d766e;
+    color: #fff;
+}
+
+.login-brand div {
+    display: grid;
+}
+
+.login-brand strong { font-size: 1.12rem; }
+.login-brand div span { color: #66807c; font-size: .76rem; text-transform: uppercase; }
+.login-heading h1 { color: #102a27; font-size: 2rem; margin: .2rem 0 .45rem; }
+.login-heading > p:last-child { color: #627572; margin-bottom: 1.6rem; }
+
+.login-form { display: grid; gap: 1rem; }
+.login-form label:not(.remember-me) { color: #29433f; display: grid; font-size: .88rem; font-weight: 650; gap: .45rem; }
+.login-form input[type="email"],
+.login-form input[type="password"] {
+    border: 1px solid #cbd9d6;
+    border-radius: 10px;
+    font: inherit;
+    padding: .82rem .9rem;
+}
+.login-form input:focus { border-color: #0d766e; outline: 3px solid rgba(13, 118, 110, .13); }
+.remember-me { align-items: center; color: #4c6662; display: flex; font-size: .9rem; gap: .55rem; }
+.login-form .button { justify-content: center; margin-top: .4rem; padding: .85rem; }
+.login-note { border-top: 1px solid #e5ecea; color: #738581; font-size: .82rem; margin: 1.7rem 0 0; padding-top: 1.25rem; text-align: center; }

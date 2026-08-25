@@ -25,6 +25,9 @@
 - Keine Geschäftsanforderungen erfinden.
 - Fachliche Stammdaten mit Historienbezug bevorzugt deaktivieren statt löschen.
 - Technische Audit-Zeitstempel grundsätzlich in UTC speichern.
+- Sicherheitsentscheidungen zentral über Rollen, Policies und Application-Services abbilden; Endpunkte nicht ad hoc nach Rollennamen verzweigen.
+- Passwörter, Tokens und sonstige Secrets weder fest codieren noch protokollieren oder als Contract ausgeben.
+- Sicherheitsprüfungen in Tests gezielt ersetzen, aber nicht pauschal deaktivieren.
 
 ## Datenbankregeln
 

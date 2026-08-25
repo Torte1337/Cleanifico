@@ -2,12 +2,14 @@
 
 ## Nächster sinnvoller Schritt
 
-- [ ] Tenantlokale Authentifizierung und Autorisierung als eigenen vertikalen Sicherheitsschnitt konzipieren und umsetzen; Rollen- und Anmeldeanforderungen vorher konkretisieren und anschließend die Cleaning-Type-Endpunkte absichern.
+- [ ] Vor dem nächsten Fachmodul FergensHub-/Discovery-Verträge und vorhandene Referenzimplementierungen bereitstellen und die Lizenzgrenze konkretisieren.
 
 ## Offen
 
-- [ ] Vor Produktiveinsatz Identity, Autorisierung und FergensHub-Lizenzprüfung vollständig integrieren; die Cleaning-Type-Endpunkte sind bis dahin nicht produktionsbereit.
 - [ ] Vor der Lizenz-/Discovery-Implementierung die vorhandenen FergensHub-, Assetfico- und Discovery-Verträge beziehungsweise Referenzimplementierungen bereitstellen und prüfen; keine parallele lokale Lizenzlogik ergänzen.
+- [ ] Produktiven Data-Protection-Keyring für API und Web persistent, zugriffsgeschützt und at rest verschlüsselt betreiben.
+- [ ] Passwort-Reset, Einladung/Initialpasswort-Wechsel und MFA mit konkreten Produktanforderungen ergänzen; keine öffentliche Registrierung einführen.
+- [ ] Eine optionale fachliche Verknüpfung von Benutzerkonto und späterem Mitarbeiterdatensatz erst mit dem Personalmodul festlegen.
 - [ ] Einen kontrollierten Rollout-Prozess für Migrationen über alle tenantlokalen Datenbanken definieren.
 - [ ] Echte MySQL-Integrationstests mit eindeutig isolierter, kurzlebiger Testdatenbank ergänzen; bis dahin bleiben EF-Metadaten- und HTTP-Tests bewusst datenbankfrei.
 - [ ] EF-Core-/Pomelo-10-Kompatibilität erneut prüfen, sobald ein stabiler Pomelo-10-Provider veröffentlicht ist.
@@ -17,6 +19,7 @@
 
 - [ ] Docker- und Deployment-Strategie pro Tenant aus vorhandenen FergensHub-/Assetfico-Patterns ableiten.
 - [ ] `Cleanifico.Mobile` mit .NET MAUI ergänzen.
+- [ ] Für Mobile einen eigenen Bearer-/Token-Anmeldefluss entwerfen.
 - [ ] Offline-Synchronisierung und SQLite-Cache für Mobile konzipieren.
 
 ## Erledigt
@@ -25,3 +28,5 @@
 - [x] Repositoryweite Arbeitsregeln in `AGENTS.md` festgelegt.
 - [x] EF Core, Pomelo, `CleanificoDbContext`, MySQL-Konfiguration und initiale Migration eingerichtet.
 - [x] Reinigungstypen als ersten End-to-End-Schnitt mit Domain, Application, Contracts, API, Web und Tests umgesetzt.
+- [x] Tenantlokales ASP.NET Core Identity, Rollen, zentrale Policies, Login/Logout und sicheren Owner-Bootstrap umgesetzt.
+- [x] Cleaning-Type-Webseite und -API rollenbasiert abgesichert; Benutzerverwaltung mit Schutz des letzten aktiven Owners ergänzt.

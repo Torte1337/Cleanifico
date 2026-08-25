@@ -1,4 +1,5 @@
 using Cleanifico.Application.CleaningTypes;
+using Cleanifico.Application.Security;
 using Cleanifico.Domain.Common;
 using Microsoft.AspNetCore.Diagnostics;
 
@@ -33,6 +34,28 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                     extensions: new Dictionary<string, object?>
                     {
                         ["field"] = conflictException.Field
+                    }),
+
+            UserValidationException userValidationException =>
+                Results.ValidationProblem(
+                    userValidationException.Errors,
+                    statusCode: StatusCodes.Status400BadRequest,
+                    title: "Validierung fehlgeschlagen"),
+
+            UserNotFoundException userNotFoundException =>
+                Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Benutzer nicht gefunden",
+                    detail: userNotFoundException.Message),
+
+            UserConflictException userConflictException =>
+                Results.Problem(
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Benutzer konnte nicht geändert werden",
+                    detail: userConflictException.Message,
+                    extensions: new Dictionary<string, object?>
+                    {
+                        ["field"] = userConflictException.Field
                     }),
 
             _ => HandleUnexpectedException(exception)

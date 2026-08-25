@@ -1,10 +1,13 @@
 using Cleanifico.Domain.CleaningTypes;
+using Cleanifico.Infrastructure.Security.Identity;
+using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace Cleanifico.Infrastructure.Persistence;
 
 public sealed class CleanificoDbContext(DbContextOptions<CleanificoDbContext> options)
-    : DbContext(options)
+    : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>(options)
 {
     public DbSet<CleaningType> CleaningTypes => Set<CleaningType>();
 
@@ -12,7 +15,7 @@ public sealed class CleanificoDbContext(DbContextOptions<CleanificoDbContext> op
     {
         ArgumentNullException.ThrowIfNull(modelBuilder);
 
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(CleanificoDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(CleanificoDbContext).Assembly);
     }
 }

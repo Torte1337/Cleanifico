@@ -15,11 +15,11 @@ Die Solution verwendet das moderne Format `Cleanifico.slnx`. Alle Projekte ziele
 | Projekt | Verantwortung | Aktueller Inhalt |
 | --- | --- | --- |
 | `Cleanifico.Domain` | Entities, Value Objects, Enums, Domain-Regeln und Domain Exceptions | `CleaningType` mit Invarianten und UTC-Lifecycle |
-| `Cleanifico.Application` | Use Cases, Interfaces, Validierung und Orchestrierung | Reinigungstyp-Service und Repository-Port |
-| `Cleanifico.Contracts` | DTOs, Requests, Responses und öffentliche Verträge | getrennte Cleaning-Type-Requests und -Responses |
-| `Cleanifico.Infrastructure` | EF Core, MySQL, spätere Identity-Persistenz, Repositories und externe Adapter | `CleanificoDbContext`, Fluent Mapping, Repository und Migrationen |
-| `Cleanifico.Api` | ASP.NET Core API und serverseitiger Composition Root | Problem Details, Health Check und Cleaning-Type-Endpunkte |
-| `Cleanifico.Web` | Blazor-Oberfläche für Cleanifico Office | Office-Hülle, typisierter API-Client und `/reinigungstypen` |
+| `Cleanifico.Application` | Use Cases, Interfaces, Validierung und Orchestrierung | Reinigungstyp- und Benutzerverwaltungs-Ports |
+| `Cleanifico.Contracts` | DTOs, Requests, Responses und öffentliche Verträge | Cleaning-Type-, Identity- und Benutzerverträge sowie Security-Konstanten |
+| `Cleanifico.Infrastructure` | EF Core, MySQL, Identity, Repositories und technische Adapter | `CleanificoDbContext`, Identity-Services, Fluent Mapping und Migrationen |
+| `Cleanifico.Api` | ASP.NET Core API und serverseitiger Composition Root | Identity-Cookie, Policies, Problem Details, Health-, Cleaning-Type- und Benutzer-Endpunkte |
+| `Cleanifico.Web` | Blazor-Oberfläche für Cleanifico Office | Login, geschützte Office-Hülle, Reinigungstypen und Benutzerverwaltung |
 | `*.Tests` | Unit-, Architektur- und Integrationstests | Domain, Application, EF-Mapping, Referenzgraph und echte HTTP-Routen |
 
 `Cleanifico.Mobile` ist als spätere .NET-MAUI-App vorgesehen, gehört aber noch nicht zur Solution.
@@ -74,7 +74,7 @@ Jeder Tenant erhält eine eigene Tenant-ID, API-/Instanz, Konfiguration, Lizenz 
 
 Der Laufzeit-Connection-String kommt aus `ConnectionStrings:Cleanifico`; echte Zugangsdaten liegen nicht im Repository. Die API schlägt beim Start mit einer neutralen Konfigurationsmeldung fehl, wenn der Wert fehlt. Die Design-Time-Factory verwendet für reine Modellerzeugung eine nicht funktionsfähige Platzhalterverbindung.
 
-Schemaänderungen liegen versioniert unter `Persistence/Migrations`. Die erste Migration ist `InitialCleanificoPersistence`. Der Host führt weder `EnsureCreated` noch `Database.Migrate` beim Start aus. Lokale und spätere produktive Tenant-Migrationen werden explizit und kontrolliert ausgeführt.
+Schemaänderungen liegen versioniert unter `Persistence/Migrations`. Auf `InitialCleanificoPersistence` folgt `AddTenantIdentity` mit den ASP.NET-Identity-Tabellen. Der Host führt weder `EnsureCreated` noch `Database.Migrate` beim Start aus. Lokale und spätere produktive Tenant-Migrationen werden explizit und kontrolliert ausgeführt.
 
 Die Persistenzabstraktion gehört in Application, die EF-Implementierung in Infrastructure:
 
@@ -106,7 +106,13 @@ MySQL-Fehler für eindeutige Indizes und spätere Fremdschlüssel werden in vers
 
 ## Authentifizierung und Autorisierung
 
-Noch nicht implementiert. Die Cleaning-Type-Endpunkte sind daher aktuell nicht geschützt und dürfen in diesem Zustand nicht produktiv erreichbar sein. Geplant ist ASP.NET Core Identity mit tenantlokaler Persistenz. Rollen, Claims, App-Zugänge und die genaue Token-/Cookie-Kopplung werden erst mit konkreten Anforderungen definiert; es existiert bewusst kein Fake-Security-System.
+ASP.NET Core Identity verwendet `ApplicationUser`, `IdentityRole<Guid>` und denselben `CleanificoDbContext` wie die tenantlokalen Fachdaten. Eine zusätzliche `TenantId` ist wegen der Instanz-/Datenbank-Isolation nicht nötig. `ApplicationUser` führt Vorname, Nachname, eindeutige E-Mail als Benutzername, Aktivstatus und UTC-Auditzeiten. Ein Konto ist kein fachlicher Mitarbeiterdatensatz.
+
+Die Rollen sind `Owner`, `Administrator`, `Dispatcher`, `ObjectManager` und `Employee`. Rollen und Policy-Namen liegen zentral in Contracts. Die API erzwingt zusätzlich zu den Rollen eine Active-User-Anforderung als Fallback-Policy. Cleaning-Type-Lesezugriffe erlauben die vier Office-Rollen, Schreibzugriffe nur Owner und Administrator. Benutzerverwaltung und Rollenvergabe sind ebenfalls Owner/Administrator vorbehalten. Der letzte aktive Owner ist gegen Deaktivierung und Rollenentzug geschützt.
+
+API und Web sind getrennte Hosts und teilen den ASP.NET-Identity-Anwendungscookie über denselben Scheme-/Cookie-Namen, Application Name und persistenten Data-Protection-Schlüsselbund. Der Cookie ist `HttpOnly`, `Secure`, `SameSite=Lax`, acht Stunden gültig und gleitend erneuert. Die Web-BFF-Endpunkte vermitteln Login und Logout; typisierte Server-Clients reichen eine kurzlebig geschützte Sitzung an die API weiter. Die API validiert den Security Stamp bei jeder Anfrage, die Web-App prüft die Sitzung fail-closed gegen `/api/auth/session`. Anonyme API-Aufrufe liefern `401`, fehlende Rollen `403`.
+
+Passwörter erfordern mindestens zwölf Zeichen sowie Groß-/Kleinbuchstaben, Zahl und Sonderzeichen. Fünf Fehlversuche sperren das Konto für 15 Minuten. Öffentliche Registrierung, MFA und Passwort-Reset sind nicht Teil des aktuellen Schnitts. Rollen werden idempotent gestartet; ein erster Owner wird nur bei expliziter Bootstrap-Konfiguration mit externem Initialpasswort erzeugt. Produktiv müssen beide Hosts denselben zugriffsgeschützten und at-rest verschlüsselten Keyring verwenden. Für eine spätere Mobile-App ist ein eigener Bearer-/Token-Flow zu entwerfen; der Office-Cookie wird nicht vorweggenommen.
 
 ## FergensHub-Lizenzierung
 
@@ -129,10 +135,12 @@ xUnit prüft derzeit:
 - Domain-Invarianten, Normalisierung und Cleaning-Type-Lifecycle,
 - Application-Orchestrierung, Eindeutigkeit, Suche, Filter und Sortierung,
 - das tatsächliche EF-/Pomelo-Modell einschließlich Feldlängen und Indizes,
-- alle Cleaning-Type-HTTP-Operationen und Fehlerstatus über einen lokalen Kestrel-Host mit isoliertem In-Memory-Testrepository,
+- Identity-Benutzer, Passwort-Hashing, Login, Inaktivität, Lockout, Rollen, Owner-Schutz und sicheren Bootstrap,
+- alle Cleaning-Type-HTTP-Operationen und rollenabhängigen `401`-/`403`-Fälle über einen lokalen Kestrel-Host,
+- Login- und Routenschutz der eigenständigen Web-App,
 - die Abhängigkeitsfreiheit der Domain,
 - die exakten Projekt-Referenzen von Application, Infrastructure, API und Web,
-- die Vollständigkeit der zehn initialen Solution-Projekte,
+- die Vollständigkeit der elf Solution-Projekte,
 - den laufenden API-Health-Endpunkt.
 
 Die HTTP-Tests tauschen nur den Repository-Port am Composition Root aus und berühren niemals eine Entwicklungs- oder produktive MySQL-Datenbank. Echte MySQL-Integrationstests bleiben offen, bis eine zuverlässig isolierte Testdatenbank bereitsteht.

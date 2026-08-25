@@ -12,5 +12,6 @@
     <Project Path="tests/Cleanifico.Application.Tests/Cleanifico.Application.Tests.csproj" />
     <Project Path="tests/Cleanifico.Domain.Tests/Cleanifico.Domain.Tests.csproj" />
     <Project Path="tests/Cleanifico.Infrastructure.Tests/Cleanifico.Infrastructure.Tests.csproj" />
+    <Project Path="tests/Cleanifico.Web.Tests/Cleanifico.Web.Tests.csproj" />
   </Folder>
 </Solution>

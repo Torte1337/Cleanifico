@@ -11,14 +11,25 @@
         </a>
 
         <nav aria-label="Hauptnavigation">
-            <NavLink href="/" Match="NavLinkMatch.All">
-                <span class="nav-icon" aria-hidden="true">⌂</span>
-                Übersicht
-            </NavLink>
-            <NavLink href="/reinigungstypen">
-                <span class="nav-icon" aria-hidden="true">◇</span>
-                Reinigungstypen
-            </NavLink>
+            <AuthorizeView Policy="@SecurityPolicies.OfficeAccess">
+                <NavLink href="/" Match="NavLinkMatch.All">
+                    <span class="nav-icon" aria-hidden="true">⌂</span>
+                    Übersicht
+                </NavLink>
+            </AuthorizeView>
+            <AuthorizeView Policy="@SecurityPolicies.ViewCleaningTypes">
+                <NavLink href="/reinigungstypen">
+                    <span class="nav-icon" aria-hidden="true">◇</span>
+                    Reinigungstypen
+                </NavLink>
+            </AuthorizeView>
+            <AuthorizeView Policy="@SecurityPolicies.AdministrationAccess">
+                <p class="nav-section">Administration</p>
+                <NavLink href="/administration/benutzer">
+                    <span class="nav-icon" aria-hidden="true">♙</span>
+                    Benutzer
+                </NavLink>
+            </AuthorizeView>
         </nav>
 
         <p class="sidebar-note">Betriebssoftware für Gebäudereinigung</p>
@@ -27,7 +38,17 @@
     <section class="workspace">
         <header class="topbar">
             <span>Cleanifico Office</span>
-            <span class="environment-label">Administration</span>
+            <AuthorizeView>
+                <Authorized Context="userContext">
+                    <div class="user-menu">
+                        <span>@userContext.User.Identity?.Name</span>
+                        <form method="post" action="/auth/logout">
+                            <AntiforgeryToken />
+                            <button type="submit">Abmelden</button>
+                        </form>
+                    </div>
+                </Authorized>
+            </AuthorizeView>
         </header>
         <div class="page-container">
             @Body
