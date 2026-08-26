@@ -1,4 +1,5 @@
 using Cleanifico.Application.CleaningTypes;
+using Cleanifico.Application.Customers;
 using Cleanifico.Application.Security;
 using Cleanifico.Application.TimeTypes;
 using Cleanifico.Infrastructure.Persistence;
@@ -39,6 +40,7 @@ public static class DependencyInjection
                 }));
 
         services.AddScoped<ICleaningTypeRepository, EfCleaningTypeRepository>();
+        services.AddScoped<ICustomerRepository, EfCustomerRepository>();
         services.AddScoped<ITimeTypeRepository, EfTimeTypeRepository>();
 
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(IdentitySecurityDefaults.Configure)

@@ -114,6 +114,38 @@ public sealed class OfficeWebSecurityTests
             response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Redirect
             || !html.Contains("Konfigurieren Sie die Zeit- und Abwesenheitsarten", StringComparison.Ordinal));
     }
+
+    [Theory]
+    [InlineData(SecurityRoles.Owner, true)]
+    [InlineData(SecurityRoles.Administrator, true)]
+    [InlineData(SecurityRoles.Dispatcher, false)]
+    [InlineData(SecurityRoles.ObjectManager, false)]
+    public async Task OfficeRoles_CanOpenCustomersWithRoleAppropriateActions(
+        string role,
+        bool canManage)
+    {
+        await using var host = await OfficeWebTestHost.StartAsync(role, anonymous: false);
+
+        using var response = await host.Client.GetAsync("/kunden");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Verwalten Sie Auftraggeber, Ansprechpartner", html, StringComparison.Ordinal);
+        Assert.Equal(canManage, html.Contains("Kunde anlegen", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Employee_CannotOpenCustomers()
+    {
+        await using var host = await OfficeWebTestHost.StartAsync(SecurityRoles.Employee, anonymous: false);
+
+        using var response = await host.Client.GetAsync("/kunden");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.True(
+            response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Redirect
+            || !html.Contains("Verwalten Sie Auftraggeber, Ansprechpartner", StringComparison.Ordinal));
+    }
 }
 
 internal sealed class OfficeWebTestHost : IAsyncDisposable

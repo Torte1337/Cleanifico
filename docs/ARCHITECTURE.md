@@ -14,8 +14,8 @@ Die Solution verwendet das moderne Format `Cleanifico.slnx`. Alle Projekte ziele
 
 | Projekt | Verantwortung | Aktueller Inhalt |
 | --- | --- | --- |
-| `Cleanifico.Domain` | Entities, Value Objects, Enums, Domain-Regeln und Domain Exceptions | `CleaningType` und frei konfigurierbarer `TimeType` mit UTC-Lifecycle |
-| `Cleanifico.Application` | Use Cases, Interfaces, Validierung und Orchestrierung | Reinigungstyp-, Zeittyp- und Benutzerverwaltungs-Ports |
+| `Cleanifico.Domain` | Entities, Value Objects, Enums, Domain-Regeln und Domain Exceptions | `CleaningType`, `TimeType` und `Customer` mit UTC-Lifecycle |
+| `Cleanifico.Application` | Use Cases, Interfaces, Validierung und Orchestrierung | Reinigungstyp-, Zeittyp-, Kunden- und Benutzerverwaltungs-Ports |
 | `Cleanifico.Contracts` | DTOs, Requests, Responses und öffentliche Verträge | Cleaning-Type-, Identity- und Benutzerverträge sowie Security-Konstanten |
 | `Cleanifico.Infrastructure` | EF Core, MySQL, Identity, Repositories und technische Adapter | `CleanificoDbContext`, Identity-Services, Fluent Mapping und Migrationen |
 | `Cleanifico.Api` | ASP.NET Core API und serverseitiger Composition Root | Identity-Cookie, Policies, Problem Details, Health-, Cleaning-Type- und Benutzer-Endpunkte |
@@ -70,11 +70,11 @@ Jeder Tenant erhält eine eigene Tenant-ID, API-/Instanz, Konfiguration, Lizenz 
 
 `Cleanifico.Infrastructure` verwendet EF Core 9.0.19 mit dem stabilen Pomelo-Provider 9.0.0 und einem expliziten MySQL-8.4-Serverprofil. Pomelo 9 ist der derzeit stabile Providerzweig; deshalb bleibt auch EF Core auf der kompatiblen 9.0-Patchlinie, obwohl die Hosts `net10.0` verwenden. Ein späterer gemeinsamer Wechsel auf EF Core/Pomelo 10 erfolgt erst mit einer stabilen kompatiblen Providerfreigabe.
 
-`CleanificoDbContext` ist der zentrale Context. Entity-Mappings liegen in separaten `IEntityTypeConfiguration<T>`-Klassen und werden aus der Infrastructure-Assembly geladen. `CleaningType` und `TimeType` besitzen eindeutige, case-insensitive Indizes für Name und Code sowie Listenindizes über Status, Sortierung und Name. Technische Zeitstempel werden als `datetime(6)` in UTC geführt.
+`CleanificoDbContext` ist der zentrale Context. Entity-Mappings liegen in separaten `IEntityTypeConfiguration<T>`-Klassen und werden aus der Infrastructure-Assembly geladen. `CleaningType` und `TimeType` besitzen eindeutige, case-insensitive Indizes für Name und Code. `Customer` besitzt eine eindeutige, case-insensitive Kundennummer sowie Lookup-Indizes für Status/Firmenname und Ort. Technische Zeitstempel werden als `datetime(6)` in UTC geführt.
 
 Der Laufzeit-Connection-String kommt aus `ConnectionStrings:Cleanifico`; echte Zugangsdaten liegen nicht im Repository. Die API schlägt beim Start mit einer neutralen Konfigurationsmeldung fehl, wenn der Wert fehlt. Die Design-Time-Factory verwendet für reine Modellerzeugung eine nicht funktionsfähige Platzhalterverbindung.
 
-Schemaänderungen liegen versioniert unter `Persistence/Migrations`. Auf `InitialCleanificoPersistence` und `AddTenantIdentity` folgt `AddConfigurableTimeTypes` mit `TimeTypes` und dem technischen Initialisierungsmarker. Der Host führt weder `EnsureCreated` noch `Database.Migrate` beim Start aus. Lokale und spätere produktive Tenant-Migrationen werden explizit und kontrolliert ausgeführt.
+Schemaänderungen liegen versioniert unter `Persistence/Migrations`. Auf `InitialCleanificoPersistence`, `AddTenantIdentity` und `AddConfigurableTimeTypes` folgt `AddCustomers`. Der Host führt weder `EnsureCreated` noch `Database.Migrate` beim Start aus. Lokale und spätere produktive Tenant-Migrationen werden explizit und kontrolliert ausgeführt.
 
 Die Persistenzabstraktion gehört in Application, die EF-Implementierung in Infrastructure:
 
@@ -100,9 +100,15 @@ MySQL-Fehler für eindeutige Indizes und spätere Fremdschlüssel werden in vers
 
 ## API und Web-App
 
-`Cleanifico.Api` ist der serverseitige Composition Root. Sie registriert Problem Details, zentrale Exception-Behandlung, Health Checks, Application Services und die Infrastructure-Adapter. Neben `GET /health` stellt sie Stammdaten-Routen unter `/api/cleaning-types` und `/api/time-types` bereit. Domainvalidierung führt zu `400`, fehlende Datensätze zu `404` und Eindeutigkeits-/Löschkonflikte zu `409`; unerwartete Fehler werden geloggt, aber ohne interne Details ausgeliefert.
+`Cleanifico.Api` ist der serverseitige Composition Root. Sie registriert Problem Details, zentrale Exception-Behandlung, Health Checks, Application Services und die Infrastructure-Adapter. Neben `GET /health` stellt sie Stammdaten-Routen unter `/api/cleaning-types`, `/api/time-types` und `/api/customers` bereit. Domainvalidierung führt zu `400`, fehlende Datensätze zu `404` und Eindeutigkeits-/Löschkonflikte zu `409`; unerwartete Fehler werden geloggt, aber ohne interne Details ausgeliefert.
 
-`Cleanifico.Web` ist eine eigenständige Blazor-Web-App mit serverseitiger Interaktivität. Sie referenziert nur öffentliche Contracts und ruft die API über typisierte HTTP-Clients auf. Die Seiten `/reinigungstypen` und `/zeittypen` bieten Suche, Statusfilter, Listen, Dialoge zum Anlegen/Bearbeiten und klar getrennte Aktionen zum Deaktivieren, Reaktivieren und endgültigen Löschen. Backendfehler werden als sichere deutsche Meldungen dargestellt; rohe Antworttexte oder Stacktraces werden nicht gezeigt.
+`Cleanifico.Web` ist eine eigenständige Blazor-Web-App mit serverseitiger Interaktivität. Sie referenziert nur öffentliche Contracts und ruft die API über typisierte HTTP-Clients auf. Die Seiten `/reinigungstypen`, `/zeittypen` und `/kunden` bieten Suche, Statusfilter, Listen, Dialoge zum Anlegen/Bearbeiten und klar getrennte Lifecycle-Aktionen. Die Kundenseite enthält zusätzlich eine echte read-only Detailabfrage für Stammdaten, Kontakt, Adresse und Status. Backendfehler werden als sichere deutsche Meldungen dargestellt; rohe Antworttexte oder Stacktraces werden nicht gezeigt.
+
+## Kunden und spätere Objekte
+
+`Customer` ist der tenantlokale Auftraggeber. `CustomerNumber` ist ein benutzerverwalteter, case-insensitive eindeutiger Geschäftsschlüssel; die technische ID bleibt der Primärschlüssel. Ansprechpartner und Verwaltungsadresse liegen bis zu konkreten Mehrfachkontakt-Anforderungen direkt am Customer. Ein späteres `Object` gehört genau einem Customer und führt seine eigene Einsatz-/Reinigungsadresse; eine Objekt-Entity existiert noch nicht.
+
+Physisches Löschen ist nur ohne fachliche Referenzen erlaubt. Sobald Objekte, Verträge, Rechnungen oder historische Daten auf einen Kunden verweisen, schützen Fremdschlüssel den Datensatz und Deaktivierung wird der reguläre Lifecycle. Es werden keine künstlichen Referenzen auf noch nicht vorhandene Module eingeführt.
 
 ## Zeittypen und historische Stabilität
 
@@ -140,10 +146,11 @@ xUnit prüft derzeit:
 
 - Domain-Invarianten, Normalisierung und Cleaning-Type-Lifecycle,
 - TimeType-Invarianten, vollständige Änderbarkeit, Lifecycle und Standarddaten-Idempotenz ohne Reset,
+- Customer-Pflichtfelder, Normalisierung, Eindeutigkeit, Suche, Status, Lifecycle und EF-Mapping,
 - Application-Orchestrierung, Eindeutigkeit, Suche, Filter und Sortierung,
 - das tatsächliche EF-/Pomelo-Modell einschließlich Feldlängen und Indizes,
 - Identity-Benutzer, Passwort-Hashing, Login, Inaktivität, Lockout, Rollen, Owner-Schutz und sicheren Bootstrap,
-- Cleaning-Type- und TimeType-HTTP-Operationen sowie rollenabhängige `401`-/`403`-Fälle über einen lokalen Kestrel-Host,
+- Cleaning-Type-, TimeType- und Customer-HTTP-Operationen sowie rollenabhängige `401`-/`403`-Fälle über einen lokalen Kestrel-Host,
 - Login- und Routenschutz der eigenständigen Web-App,
 - die Abhängigkeitsfreiheit der Domain,
 - die exakten Projekt-Referenzen von Application, Infrastructure, API und Web,

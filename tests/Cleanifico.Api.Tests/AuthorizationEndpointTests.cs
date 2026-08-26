@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Cleanifico.Contracts.CleaningTypes;
+using Cleanifico.Contracts.Customers;
 using Cleanifico.Contracts.Security;
 using Cleanifico.Contracts.TimeTypes;
 using Cleanifico.Domain.CleaningTypes;
@@ -148,6 +149,62 @@ public sealed class AuthorizationEndpointTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task AnonymousCustomerRequest_ReturnsUnauthorized()
+    {
+        await using var host = await ApiTestHost.StartAnonymousWithCustomersAsync();
+
+        using var getResponse = await host.Client.GetAsync("/api/customers");
+        using var postResponse = await host.Client.PostAsJsonAsync(
+            "/api/customers",
+            CreateCustomerRequest());
+
+        Assert.Equal(HttpStatusCode.Unauthorized, getResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, postResponse.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(SecurityRoles.Owner)]
+    [InlineData(SecurityRoles.Administrator)]
+    public async Task AdministratorRoles_CanReadAndManageCustomers(string role)
+    {
+        await using var host = await ApiTestHost.StartAsRoleWithCustomersAsync(role);
+
+        using var getResponse = await host.Client.GetAsync("/api/customers");
+        using var postResponse = await host.Client.PostAsJsonAsync(
+            "/api/customers",
+            CreateCustomerRequest());
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, postResponse.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(SecurityRoles.Dispatcher)]
+    [InlineData(SecurityRoles.ObjectManager)]
+    public async Task ReadOnlyOfficeRoles_CanReadButCannotManageCustomers(string role)
+    {
+        await using var host = await ApiTestHost.StartAsRoleWithCustomersAsync(role);
+
+        using var getResponse = await host.Client.GetAsync("/api/customers");
+        using var postResponse = await host.Client.PostAsJsonAsync(
+            "/api/customers",
+            CreateCustomerRequest());
+
+        Assert.Equal(HttpStatusCode.OK, getResponse.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, postResponse.StatusCode);
+    }
+
+    [Fact]
+    public async Task Employee_CannotUseCustomerAdministrationApi()
+    {
+        await using var host = await ApiTestHost.StartAsRoleWithCustomersAsync(SecurityRoles.Employee);
+
+        using var response = await host.Client.GetAsync("/api/customers");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private static CreateCleaningTypeRequest CreateRequest() => new()
     {
         Name = "Sicherheitsreinigung",
@@ -172,6 +229,12 @@ public sealed class AuthorizationEndpointTests
         RequiresObject = true,
         Color = "#2F855A",
         SortOrder = 10
+    };
+
+    private static CreateCustomerRequest CreateCustomerRequest() => new()
+    {
+        CustomerNumber = "K-100",
+        CompanyName = "Sicherheitskunde GmbH"
     };
 
     public enum HttpMethodName

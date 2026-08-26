@@ -10,8 +10,9 @@ Cleanifico ist eine mandantenfähige Betriebssoftware für Gebäudereinigungsunt
 - `CleanificoDbContext`, tenantlokales ASP.NET Core Identity und Migrationen `InitialCleanificoPersistence` sowie `AddTenantIdentity`
 - erster vertikaler Fachschnitt `CleaningType` mit Domain-Regeln, Application Service, REST API und Blazor-Verwaltung
 - frei konfigurierbare `TimeType`-Stammdaten mit einmalig initialisierten, vollständig änderbaren Standardwerten
-- separate ASP.NET Core API mit geschützten Cleaning-Type- und Benutzer-Endpunkten; nur `GET /health` und Login sind anonym erreichbar
-- separate Blazor-Web-App für Cleanifico Office mit Login, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer`
+- Kundenverwaltung für Auftraggeber mit Ansprechpartner, Verwaltungsadresse, Detailansicht und Lifecycle
+- separate ASP.NET Core API mit geschützten Stammdaten- und Benutzer-Endpunkten; nur `GET /health` und Login sind anonym erreichbar
+- separate Blazor-Web-App für Cleanifico Office mit Login, `/kunden`, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer`
 - fünf xUnit-Testprojekte mit Domain-, Application-, Identity-, EF-, Architektur-, API- und Web-Integrationstests
 - noch keine Lizenzprüfung, Discovery-, Mobile- oder sonstigen externen Integrationen
 
@@ -113,6 +114,12 @@ Lesen erfordert `Owner`, `Administrator`, `Dispatcher` oder `ObjectManager`; Sch
 Zeittypen werden unter `/api/time-types` und in Cleanifico Office unter `/zeittypen` verwaltet. Sie sind normale tenantlokale Datensätze und keine fest codierten Enums. Owner und Administrator dürfen lesen und verwalten; Dispatcher und ObjectManager nur lesen; Employee erhält keinen administrativen Zugriff.
 
 Beim ersten Start nach der Migration `AddConfigurableTimeTypes` werden `ARB`, `PAU`, `FAH`, `URL`, `KRK`, `SCH` und `BES` einmalig angelegt. Ein technischer Initialisierungsmarker verhindert jede spätere Neueinspielung: Umbenennen, Codeänderungen, Eigenschaften, Deaktivierung und auch Löschungen werden nie durch Startlogik zurückgesetzt. Sobald spätere Zeitbuchungen einen Zeittyp verwenden, ist Deaktivierung statt physischem Löschen vorgesehen.
+
+## Kunden
+
+Kunden sind die Auftraggeber des tenantlokalen Reinigungsunternehmens. Sie werden unter `/api/customers` und in Cleanifico Office unter `/kunden` verwaltet. Die Kundennummer ist innerhalb der Tenant-Datenbank eindeutig und änderbar. Ansprechpartner und Verwaltungsadresse liegen zunächst direkt am Kunden; spätere Objektadressen gehören an das noch nicht implementierte Object-Modul.
+
+Owner und Administrator dürfen Kunden lesen und verwalten, Dispatcher und ObjectManager nur lesen. Employee besitzt keinen administrativen Zugriff. Solange keine fachlichen Referenzen existieren, darf ein Kunde physisch gelöscht werden. Mit späteren Objekten, Verträgen, Rechnungen oder historischen Daten ist ausschließlich Deaktivierung zulässig.
 
 ## Dokumentation
 

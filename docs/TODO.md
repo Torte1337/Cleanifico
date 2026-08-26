@@ -11,6 +11,7 @@
 - [ ] Passwort-Reset, Einladung/Initialpasswort-Wechsel und MFA mit konkreten Produktanforderungen ergänzen; keine öffentliche Registrierung einführen.
 - [ ] Eine optionale fachliche Verknüpfung von Benutzerkonto und späterem Mitarbeiterdatensatz erst mit dem Personalmodul festlegen.
 - [ ] Beim späteren `TimeEntry`-Modul die beschlossenen Zeittyp-Snapshots speichern und verwendete Zeittypen gegen physisches Löschen absichern.
+- [ ] Beim späteren Object-Modul Customer als Pflichtbezug verwenden, eine eigene Objektadresse modellieren und referenzierte Kunden gegen physisches Löschen absichern.
 - [ ] Einen kontrollierten Rollout-Prozess für Migrationen über alle tenantlokalen Datenbanken definieren.
 - [ ] Echte MySQL-Integrationstests mit eindeutig isolierter, kurzlebiger Testdatenbank ergänzen; bis dahin bleiben EF-Metadaten- und HTTP-Tests bewusst datenbankfrei.
 - [ ] EF-Core-/Pomelo-10-Kompatibilität erneut prüfen, sobald ein stabiler Pomelo-10-Provider veröffentlicht ist.
@@ -32,3 +33,4 @@
 - [x] Tenantlokales ASP.NET Core Identity, Rollen, zentrale Policies, Login/Logout und sicheren Owner-Bootstrap umgesetzt.
 - [x] Cleaning-Type-Webseite und -API rollenbasiert abgesichert; Benutzerverwaltung mit Schutz des letzten aktiven Owners ergänzt.
 - [x] Frei konfigurierbare Zeittypen mit einmaligen Standarddaten, Persistenz, API, rollenbasierter Office-Seite, Migration und Tests umgesetzt.
+- [x] Kundenverwaltung für Auftraggeber mit eindeutiger Kundennummer, Kontakt-/Adressdaten, Detailansicht, API, Autorisierung, Migration und Tests umgesetzt.

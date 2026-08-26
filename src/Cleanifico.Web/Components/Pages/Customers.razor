@@ -1,0 +1,566 @@
+@page "/kunden"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = SecurityPolicies.ViewCustomers)]
+@using Cleanifico.Contracts.Customers
+@using Cleanifico.Web.ApiClients
+@inject ICustomersApiClient ApiClient
+
+<PageTitle>Kunden | Cleanifico Office</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Auftraggeber</p>
+        <h1>Kunden</h1>
+        <p>Verwalten Sie Auftraggeber, Ansprechpartner und Verwaltungsadressen.</p>
+    </div>
+    <AuthorizeView Policy="@SecurityPolicies.ManageCustomers">
+        <button class="button button-primary" type="button" @onclick="OpenCreateDialog">
+            <span aria-hidden="true">＋</span> Kunde anlegen
+        </button>
+    </AuthorizeView>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(feedbackMessage))
+{
+    <div class="message message-success" role="status">@feedbackMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="message message-error" role="alert">
+        <span>@errorMessage</span>
+        <button type="button" @onclick="LoadAsync">Erneut versuchen</button>
+    </div>
+}
+
+<section class="content-card">
+    <form class="toolbar" @onsubmit="LoadAsync" @onsubmit:preventDefault>
+        <label class="search-field">
+            <span class="visually-hidden">Kunde suchen</span>
+            <span aria-hidden="true">⌕</span>
+            <input placeholder="Nummer, Firma, Ansprechpartner oder Ort..." @bind="search" />
+        </label>
+        <label class="status-filter">
+            <span>Status</span>
+            <select @bind="statusFilter" @bind:after="LoadAsync">
+                <option value="all">Alle</option>
+                <option value="active">Aktiv</option>
+                <option value="inactive">Inaktiv</option>
+            </select>
+        </label>
+        <button class="button button-secondary" type="submit">Suchen</button>
+    </form>
+
+    @if (isLoading)
+    {
+        <div class="loading-state" role="status">Kunden werden geladen…</div>
+    }
+    else if (customers.Count == 0)
+    {
+        <div class="empty-state">
+            <strong>Keine Kunden gefunden</strong>
+            <p>Passen Sie Suche oder Filter an oder legen Sie den ersten Kunden an.</p>
+        </div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Kundennummer</th>
+                        <th>Firmenname</th>
+                        <th>Ansprechpartner</th>
+                        <th>Ort</th>
+                        <th>Kontakt</th>
+                        <th>Status</th>
+                        <th class="actions-column">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var customer in customers)
+                    {
+                        <tr class="@(customer.IsActive ? null : "inactive-row")">
+                            <td><span class="number-chip">@customer.CustomerNumber</span></td>
+                            <td><strong>@customer.CompanyName</strong></td>
+                            <td>@ContactName(customer)</td>
+                            <td>@FormatOrDash(customer.City)</td>
+                            <td class="contact-cell">
+                                <span>@FormatOrDash(customer.Email)</span>
+                                @if (!string.IsNullOrWhiteSpace(customer.Phone))
+                                {
+                                    <small>@customer.Phone</small>
+                                }
+                            </td>
+                            <td>
+                                <span class="status-badge @(customer.IsActive ? "active" : "inactive")">
+                                    @(customer.IsActive ? "Aktiv" : "Inaktiv")
+                                </span>
+                            </td>
+                            <td>
+                                <div class="row-actions">
+                                    <button type="button" @onclick="() => OpenDetailsAsync(customer.Id)">Details</button>
+                                    <AuthorizeView Policy="@SecurityPolicies.ManageCustomers">
+                                        <Authorized>
+                                            <button type="button" @onclick="() => OpenEditDialog(customer)">Bearbeiten</button>
+                                            @if (customer.IsActive)
+                                            {
+                                                <button type="button" @onclick="() => ConfirmDeactivate(customer)">Deaktivieren</button>
+                                            }
+                                            else
+                                            {
+                                                <button type="button" @onclick="() => ActivateAsync(customer)">Reaktivieren</button>
+                                            }
+                                            <button class="danger-action" type="button" @onclick="() => ConfirmDelete(customer)">
+                                                Löschen
+                                            </button>
+                                        </Authorized>
+                                    </AuthorizeView>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (detailCustomer is not null)
+{
+    <div class="modal-backdrop" role="presentation">
+        <section class="modal detail-modal" role="dialog" aria-modal="true" aria-labelledby="customer-detail-title">
+            <header>
+                <div>
+                    <p class="eyebrow">Kundendetails</p>
+                    <h2 id="customer-detail-title">@detailCustomer.CompanyName</h2>
+                    <span class="detail-number">@detailCustomer.CustomerNumber</span>
+                </div>
+                <button class="icon-button" type="button" aria-label="Details schließen" @onclick="CloseDetails">×</button>
+            </header>
+
+            <div class="detail-grid">
+                <section>
+                    <h3>Stammdaten</h3>
+                    <dl>
+                        <dt>Kundennummer</dt><dd>@detailCustomer.CustomerNumber</dd>
+                        <dt>Firmenname</dt><dd>@detailCustomer.CompanyName</dd>
+                        <dt>Status</dt><dd>@(detailCustomer.IsActive ? "Aktiv" : "Inaktiv")</dd>
+                    </dl>
+                </section>
+                <section>
+                    <h3>Kontakt</h3>
+                    <dl>
+                        <dt>Ansprechpartner</dt><dd>@ContactName(detailCustomer)</dd>
+                        <dt>E-Mail</dt><dd>@FormatOrDash(detailCustomer.Email)</dd>
+                        <dt>Telefon</dt><dd>@FormatOrDash(detailCustomer.Phone)</dd>
+                    </dl>
+                </section>
+                <section>
+                    <h3>Adresse</h3>
+                    <dl>
+                        <dt>Straße</dt><dd>@FormatOrDash(detailCustomer.Street)</dd>
+                        <dt>PLZ / Ort</dt><dd>@PostalCity(detailCustomer)</dd>
+                        <dt>Land</dt><dd>@FormatOrDash(detailCustomer.Country)</dd>
+                    </dl>
+                </section>
+                <section>
+                    <h3>Notizen</h3>
+                    <p class="notes">@FormatOrDash(detailCustomer.Notes)</p>
+                </section>
+            </div>
+
+            <footer>
+                <AuthorizeView Policy="@SecurityPolicies.ManageCustomers">
+                    <button class="button button-primary" type="button" @onclick="() => EditFromDetails(detailCustomer)">
+                        Bearbeiten
+                    </button>
+                </AuthorizeView>
+                <button class="button button-secondary" type="button" @onclick="CloseDetails">Schließen</button>
+            </footer>
+        </section>
+    </div>
+}
+
+@if (isEditDialogOpen)
+{
+    <div class="modal-backdrop" role="presentation">
+        <section class="modal edit-modal" role="dialog" aria-modal="true" aria-labelledby="customer-edit-title">
+            <header>
+                <div>
+                    <p class="eyebrow">Kunde</p>
+                    <h2 id="customer-edit-title">@(editingId.HasValue ? "Kunde bearbeiten" : "Kunde anlegen")</h2>
+                </div>
+                <button class="icon-button" type="button" aria-label="Dialog schließen" @onclick="CloseEditDialog">×</button>
+            </header>
+
+            @if (!string.IsNullOrWhiteSpace(dialogErrorMessage))
+            {
+                <div class="message message-error" role="alert">@dialogErrorMessage</div>
+            }
+
+            <EditForm Model="formModel" OnValidSubmit="SaveAsync" FormName="customer-form">
+                <DataAnnotationsValidator />
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="customer-number">Kundennummer</label>
+                        <InputText id="customer-number" @bind-Value="formModel.CustomerNumber" />
+                        <ValidationMessage For="() => formModel.CustomerNumber" />
+                    </div>
+                    <div class="form-field form-field-wide">
+                        <label for="customer-company">Firmenname</label>
+                        <InputText id="customer-company" @bind-Value="formModel.CompanyName" />
+                        <ValidationMessage For="() => formModel.CompanyName" />
+                    </div>
+
+                    <h3 class="form-section-title">Ansprechpartner</h3>
+                    <div class="form-field">
+                        <label for="customer-first-name">Vorname</label>
+                        <InputText id="customer-first-name" @bind-Value="formModel.ContactFirstName" />
+                        <ValidationMessage For="() => formModel.ContactFirstName" />
+                    </div>
+                    <div class="form-field">
+                        <label for="customer-last-name">Nachname</label>
+                        <InputText id="customer-last-name" @bind-Value="formModel.ContactLastName" />
+                        <ValidationMessage For="() => formModel.ContactLastName" />
+                    </div>
+                    <div class="form-field">
+                        <label for="customer-email">E-Mail</label>
+                        <InputText id="customer-email" type="email" @bind-Value="formModel.Email" />
+                        <ValidationMessage For="() => formModel.Email" />
+                    </div>
+                    <div class="form-field">
+                        <label for="customer-phone">Telefon</label>
+                        <InputText id="customer-phone" type="tel" @bind-Value="formModel.Phone" />
+                        <ValidationMessage For="() => formModel.Phone" />
+                    </div>
+
+                    <h3 class="form-section-title">Verwaltungsadresse</h3>
+                    <div class="form-field form-field-wide">
+                        <label for="customer-street">Straße</label>
+                        <InputText id="customer-street" @bind-Value="formModel.Street" />
+                        <ValidationMessage For="() => formModel.Street" />
+                    </div>
+                    <div class="form-field form-field-small">
+                        <label for="customer-postal-code">PLZ</label>
+                        <InputText id="customer-postal-code" @bind-Value="formModel.PostalCode" />
+                        <ValidationMessage For="() => formModel.PostalCode" />
+                    </div>
+                    <div class="form-field">
+                        <label for="customer-city">Ort</label>
+                        <InputText id="customer-city" @bind-Value="formModel.City" />
+                        <ValidationMessage For="() => formModel.City" />
+                    </div>
+                    <div class="form-field">
+                        <label for="customer-country">Land</label>
+                        <InputText id="customer-country" @bind-Value="formModel.Country" />
+                        <ValidationMessage For="() => formModel.Country" />
+                    </div>
+
+                    <div class="form-field form-field-wide">
+                        <label for="customer-notes">Notizen</label>
+                        <InputTextArea id="customer-notes" @bind-Value="formModel.Notes" rows="4" />
+                        <ValidationMessage For="() => formModel.Notes" />
+                    </div>
+                </div>
+
+                <footer>
+                    <button class="button button-secondary" type="button" @onclick="CloseEditDialog">Abbrechen</button>
+                    <button class="button button-primary" type="submit" disabled="@isSaving">
+                        @(isSaving ? "Wird gespeichert…" : "Speichern")
+                    </button>
+                </footer>
+            </EditForm>
+        </section>
+    </div>
+}
+
+@if (pendingConfirmation is not null)
+{
+    <div class="modal-backdrop" role="presentation">
+        <section class="modal confirmation-modal" role="alertdialog" aria-modal="true" aria-labelledby="customer-confirm-title">
+            <header><h2 id="customer-confirm-title">@pendingConfirmation.Title</h2></header>
+            <p>@pendingConfirmation.Message</p>
+            @if (pendingConfirmation.Kind == ConfirmationKind.Delete)
+            {
+                <p class="delete-warning">Diese Aktion löscht den Kunden endgültig. Sobald fachliche Referenzen existieren, ist nur noch Deaktivieren zulässig.</p>
+            }
+            <footer>
+                <button class="button button-secondary" type="button" @onclick="CancelConfirmation">Abbrechen</button>
+                <button class="button @(pendingConfirmation.Kind == ConfirmationKind.Delete ? "button-danger" : "button-primary")"
+                        type="button" disabled="@isSaving" @onclick="ExecuteConfirmationAsync">
+                    @(pendingConfirmation.Kind == ConfirmationKind.Delete ? "Endgültig löschen" : "Deaktivieren")
+                </button>
+            </footer>
+        </section>
+    </div>
+}
+
+@code {
+    private readonly List<CustomerResponse> customers = [];
+    private string search = string.Empty;
+    private string statusFilter = "all";
+    private string? errorMessage;
+    private string? feedbackMessage;
+    private string? dialogErrorMessage;
+    private bool isLoading;
+    private bool isSaving;
+    private bool isEditDialogOpen;
+    private Guid? editingId;
+    private UpdateCustomerRequest formModel = new();
+    private CustomerResponse? detailCustomer;
+    private PendingConfirmation? pendingConfirmation;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        try
+        {
+            var result = await ApiClient.GetAllAsync(search, SelectedStatus());
+            customers.Clear();
+            customers.AddRange(result);
+        }
+        catch (ApiClientException exception)
+        {
+            errorMessage = $"Laden fehlgeschlagen: {exception.Message}";
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Laden fehlgeschlagen: Die Cleanifico API ist nicht erreichbar.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private bool? SelectedStatus() => statusFilter switch
+    {
+        "active" => true,
+        "inactive" => false,
+        _ => null
+    };
+
+    private void OpenCreateDialog()
+    {
+        editingId = null;
+        formModel = new UpdateCustomerRequest();
+        dialogErrorMessage = null;
+        isEditDialogOpen = true;
+    }
+
+    private void OpenEditDialog(CustomerResponse customer)
+    {
+        editingId = customer.Id;
+        formModel = ToForm(customer);
+        dialogErrorMessage = null;
+        isEditDialogOpen = true;
+    }
+
+    private void EditFromDetails(CustomerResponse customer)
+    {
+        detailCustomer = null;
+        OpenEditDialog(customer);
+    }
+
+    private void CloseEditDialog()
+    {
+        if (!isSaving)
+        {
+            isEditDialogOpen = false;
+            dialogErrorMessage = null;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        isSaving = true;
+        dialogErrorMessage = null;
+        try
+        {
+            if (editingId.HasValue)
+            {
+                await ApiClient.UpdateAsync(editingId.Value, formModel);
+                feedbackMessage = "Der Kunde wurde gespeichert.";
+            }
+            else
+            {
+                await ApiClient.CreateAsync(ToCreateRequest(formModel));
+                feedbackMessage = "Der Kunde wurde angelegt.";
+            }
+
+            isEditDialogOpen = false;
+            await LoadAsync();
+        }
+        catch (ApiClientException exception)
+        {
+            dialogErrorMessage = $"Speichern fehlgeschlagen: {exception.Message}";
+        }
+        catch (HttpRequestException)
+        {
+            dialogErrorMessage = "Speichern fehlgeschlagen: Die Cleanifico API ist nicht erreichbar.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task OpenDetailsAsync(Guid id)
+    {
+        errorMessage = null;
+        try
+        {
+            detailCustomer = await ApiClient.GetByIdAsync(id);
+        }
+        catch (ApiClientException exception)
+        {
+            errorMessage = $"Details konnten nicht geladen werden: {exception.Message}";
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Details konnten nicht geladen werden: Die Cleanifico API ist nicht erreichbar.";
+        }
+    }
+
+    private void CloseDetails() => detailCustomer = null;
+
+    private void ConfirmDeactivate(CustomerResponse customer) =>
+        pendingConfirmation = new(
+            customer,
+            ConfirmationKind.Deactivate,
+            "Kunde deaktivieren",
+            $"Möchten Sie den Kunden „{customer.CompanyName}“ wirklich deaktivieren?");
+
+    private void ConfirmDelete(CustomerResponse customer) =>
+        pendingConfirmation = new(
+            customer,
+            ConfirmationKind.Delete,
+            "Kunde endgültig löschen",
+            $"Möchten Sie den Kunden „{customer.CompanyName}“ endgültig löschen?");
+
+    private void CancelConfirmation()
+    {
+        if (!isSaving)
+        {
+            pendingConfirmation = null;
+        }
+    }
+
+    private async Task ExecuteConfirmationAsync()
+    {
+        if (pendingConfirmation is null)
+        {
+            return;
+        }
+
+        var confirmation = pendingConfirmation;
+        isSaving = true;
+        errorMessage = null;
+        try
+        {
+            if (confirmation.Kind == ConfirmationKind.Deactivate)
+            {
+                await ApiClient.DeactivateAsync(confirmation.Customer.Id);
+                feedbackMessage = "Der Kunde wurde deaktiviert.";
+            }
+            else
+            {
+                await ApiClient.DeleteAsync(confirmation.Customer.Id);
+                feedbackMessage = "Der Kunde wurde endgültig gelöscht.";
+            }
+
+            pendingConfirmation = null;
+            await LoadAsync();
+        }
+        catch (ApiClientException exception)
+        {
+            pendingConfirmation = null;
+            errorMessage = exception.Message;
+        }
+        catch (HttpRequestException)
+        {
+            pendingConfirmation = null;
+            errorMessage = "Die Cleanifico API ist nicht erreichbar.";
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ActivateAsync(CustomerResponse customer)
+    {
+        try
+        {
+            await ApiClient.ActivateAsync(customer.Id);
+            feedbackMessage = "Der Kunde wurde reaktiviert.";
+            await LoadAsync();
+        }
+        catch (ApiClientException exception)
+        {
+            errorMessage = exception.Message;
+        }
+        catch (HttpRequestException)
+        {
+            errorMessage = "Die Cleanifico API ist nicht erreichbar.";
+        }
+    }
+
+    private static UpdateCustomerRequest ToForm(CustomerResponse customer) => new()
+    {
+        CustomerNumber = customer.CustomerNumber,
+        CompanyName = customer.CompanyName,
+        ContactFirstName = customer.ContactFirstName,
+        ContactLastName = customer.ContactLastName,
+        Email = customer.Email,
+        Phone = customer.Phone,
+        Street = customer.Street,
+        PostalCode = customer.PostalCode,
+        City = customer.City,
+        Country = customer.Country,
+        Notes = customer.Notes
+    };
+
+    private static CreateCustomerRequest ToCreateRequest(UpdateCustomerRequest request) => new()
+    {
+        CustomerNumber = request.CustomerNumber,
+        CompanyName = request.CompanyName,
+        ContactFirstName = request.ContactFirstName,
+        ContactLastName = request.ContactLastName,
+        Email = request.Email,
+        Phone = request.Phone,
+        Street = request.Street,
+        PostalCode = request.PostalCode,
+        City = request.City,
+        Country = request.Country,
+        Notes = request.Notes
+    };
+
+    private static string ContactName(CustomerResponse customer)
+    {
+        var value = $"{customer.ContactFirstName} {customer.ContactLastName}".Trim();
+        return string.IsNullOrWhiteSpace(value) ? "—" : value;
+    }
+
+    private static string PostalCity(CustomerResponse customer)
+    {
+        var value = $"{customer.PostalCode} {customer.City}".Trim();
+        return string.IsNullOrWhiteSpace(value) ? "—" : value;
+    }
+
+    private static string FormatOrDash(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "—" : value;
+
+    private enum ConfirmationKind { Deactivate, Delete }
+
+    private sealed record PendingConfirmation(
+        CustomerResponse Customer,
+        ConfirmationKind Kind,
+        string Title,
+        string Message);
+}

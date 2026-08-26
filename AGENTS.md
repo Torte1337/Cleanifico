@@ -24,6 +24,8 @@
 - Keine Template-Demos, toten Code, unnötigen Packages oder unbegründeten Breaking Changes einführen.
 - Keine Geschäftsanforderungen erfinden.
 - Fachliche Stammdaten mit Historienbezug bevorzugt deaktivieren statt löschen.
+- Kunden sind Auftraggeber und können später mehrere Objekte besitzen; referenzierte Kunden dürfen dann nur deaktiviert werden.
+- Kundennummern sind innerhalb der tenantlokalen Datenbank eindeutig und bleiben durch Benutzer änderbar.
 - Zeittypen sind frei konfigurierbare Datensätze, keine Enums; Standard-Zeittypen niemals sperren oder durch Initialisierung zurücksetzen.
 - Spätere Zeitbuchungen müssen historisch relevante Zeittyp-Eigenschaften als Snapshot speichern.
 - Technische Audit-Zeitstempel grundsätzlich in UTC speichern.

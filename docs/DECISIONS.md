@@ -219,3 +219,23 @@ Entscheidung: Spätere `TimeEntry`-Datensätze speichern neben `TimeTypeId` mind
 Grund: Änderungen an frei konfigurierbaren Zeittypen dürfen historische Arbeitszeitbuchungen nicht rückwirkend verändern oder fachlich umdeuten.
 
 Datum: 2026-08-25
+
+## DEC-023 – Customer ist Auftraggeber mit eigener Verwaltungsadresse
+
+Status: Accepted
+
+Entscheidung: `Customer` bildet den tenantlokalen Auftraggeber ab. Seine änderbare `CustomerNumber` ist tenantlokal eindeutig. Ein einzelner Ansprechpartner und die Verwaltungsadresse liegen zunächst direkt am Customer; spätere Objects besitzen eigene Einsatzadressen.
+
+Grund: Das aktuelle Kundenmodul bleibt ohne vorgezogene Kontakt- oder Objektarchitektur nutzbar und trennt dennoch Kundenverwaltung und spätere Reinigungsorte fachlich sauber.
+
+Datum: 2026-08-26
+
+## DEC-024 – Referenzierte Kunden werden deaktiviert
+
+Status: Accepted
+
+Entscheidung: Customer darf nur solange physisch gelöscht werden, wie keine fachlichen Referenzen bestehen. Mit späteren Objekten, Verträgen, Rechnungen oder historischen Daten verhindern Fremdschlüssel das Löschen; dann ist Deaktivierung der reguläre Lifecycle.
+
+Grund: Historische und abrechnungsrelevante Daten müssen ihren Auftraggeber dauerhaft nachvollziehbar behalten.
+
+Datum: 2026-08-26

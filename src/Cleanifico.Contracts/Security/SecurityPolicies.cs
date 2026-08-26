@@ -8,6 +8,8 @@ public static class SecurityPolicies
     public const string ViewCleaningTypes = "ViewCleaningTypes";
     public const string ManageTimeTypes = "ManageTimeTypes";
     public const string ViewTimeTypes = "ViewTimeTypes";
+    public const string ManageCustomers = "ManageCustomers";
+    public const string ViewCustomers = "ViewCustomers";
     public const string ManageUsers = "ManageUsers";
     public const string ManageRoles = "ManageRoles";
     public const string AdministrationAccess = "AdministrationAccess";

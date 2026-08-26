@@ -1,6 +1,7 @@
 using Cleanifico.Api.Endpoints;
 using Cleanifico.Api.ErrorHandling;
 using Cleanifico.Application.CleaningTypes;
+using Cleanifico.Application.Customers;
 using Cleanifico.Application.TimeTypes;
 using Cleanifico.Contracts.Security;
 using Cleanifico.Infrastructure;
@@ -27,6 +28,7 @@ public static class ApiApplication
         builder.Services.AddHealthChecks();
         builder.Services.AddSingleton(TimeProvider.System);
         builder.Services.AddScoped<ICleaningTypeService, CleaningTypeService>();
+        builder.Services.AddScoped<ICustomerService, CustomerService>();
         builder.Services.AddScoped<ITimeTypeService, TimeTypeService>();
         builder.Services.AddScoped<ITimeTypeInitializer, TimeTypeInitializer>();
 
@@ -85,6 +87,7 @@ public static class ApiApplication
         app.MapAuthenticationEndpoints();
         app.MapUserAdministrationEndpoints();
         app.MapCleaningTypeEndpoints();
+        app.MapCustomerEndpoints();
         app.MapTimeTypeEndpoints();
 
         return app;
