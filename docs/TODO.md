@@ -2,11 +2,12 @@
 
 ## Nächster sinnvoller Schritt
 
-- [ ] Vor dem nächsten Fachmodul FergensHub-/Discovery-Verträge und vorhandene Referenzimplementierungen bereitstellen und die Lizenzgrenze konkretisieren.
+- [ ] In FergensHub einen authentifizierten externen Effective-License-Query-Contract definieren und veröffentlichen; danach den fail-closed Cleanifico-Adapter durch den realen HTTP-Adapter ersetzen.
 
 ## Offen
 
-- [ ] Vor der Lizenz-/Discovery-Implementierung die vorhandenen FergensHub-, Assetfico- und Discovery-Verträge beziehungsweise Referenzimplementierungen bereitstellen und prüfen; keine parallele lokale Lizenzlogik ergänzen.
+- [ ] FergensHub-Contract für Tenant-/Produktidentifikation, Authentifizierung, Status-/Feature-DTOs, Fehlersemantik sowie Cache-/Grace-Period festlegen; Laufzeit, Tarife und Limits nur ergänzen, wenn das zentrale Modell sie tatsächlich führt.
+- [ ] Assetfico- und Discovery-Referenzimplementierungen bereitstellen, sobald sie verfügbar sind; Discovery bleibt bis dahin unimplementiert.
 - [ ] Produktiven Data-Protection-Keyring für API und Web persistent, zugriffsgeschützt und at rest verschlüsselt betreiben.
 - [ ] Passwort-Reset, Einladung/Initialpasswort-Wechsel und MFA mit konkreten Produktanforderungen ergänzen; keine öffentliche Registrierung einführen.
 - [ ] Eine optionale fachliche Verknüpfung von Benutzerkonto und späterem Mitarbeiterdatensatz erst mit dem Personalmodul festlegen.
@@ -34,3 +35,4 @@
 - [x] Frei konfigurierbare Zeittypen mit einmaligen Standarddaten, Persistenz, API, rollenbasierter Office-Seite, Migration und Tests umgesetzt.
 - [x] Kundenverwaltung für Auftraggeber mit eindeutiger Kundennummer, Kontakt-/Adressdaten, Detailansicht, API, Autorisierung, Migration und Tests umgesetzt.
 - [x] Objektverwaltung mit verpflichtendem Customer-Bezug, eigener Objektadresse, CRUD/Lifecycle, API, Autorisierung, Migration, Kundendetail-Verknüpfung und Kunden-Löschschutz umgesetzt.
+- [x] FergensHub-Referenz gezielt analysiert und eine zusätzliche fail-closed Lizenzgrenze mit zentralen API-/Office-Policies, kontrollierter Statusanzeige und Tests umgesetzt; keine externe Scheinintegration erfunden.

@@ -1,9 +1,11 @@
 using Cleanifico.Application.CleaningObjects;
 using Cleanifico.Application.CleaningTypes;
 using Cleanifico.Application.Customers;
+using Cleanifico.Application.Licensing;
 using Cleanifico.Application.Security;
 using Cleanifico.Application.TimeTypes;
 using Cleanifico.Infrastructure.Persistence;
+using Cleanifico.Infrastructure.Licensing;
 using Cleanifico.Infrastructure.Persistence.Repositories;
 using Cleanifico.Infrastructure.Security.Bootstrap;
 using Cleanifico.Infrastructure.Security.Identity;
@@ -44,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<ICleaningObjectRepository, EfCleaningObjectRepository>();
         services.AddScoped<ICustomerRepository, EfCustomerRepository>();
         services.AddScoped<ITimeTypeRepository, EfTimeTypeRepository>();
+        services.AddScoped<ILicenseService, UnavailableFergensHubLicenseService>();
 
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(IdentitySecurityDefaults.Configure)
             .AddEntityFrameworkStores<CleanificoDbContext>()

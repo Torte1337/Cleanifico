@@ -1,0 +1,67 @@
+@page "/lizenz"
+@rendermode InteractiveServer
+@attribute [Authorize]
+@using Cleanifico.Contracts.Licensing
+@using Cleanifico.Web.Licensing
+@inject IOfficeLicenseService LicenseService
+
+<PageTitle>Lizenz | Cleanifico Office</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">FergensHub-Lizenzierung</p>
+        <h1>Cleanifico-Lizenz</h1>
+        <p>Der Zugriff auf die fachlichen Bereiche setzt eine gültige zentrale Lizenz voraus.</p>
+    </div>
+</section>
+
+<section class="content-card">
+    @if (loading)
+    {
+        <div class="loading-state" role="status">Lizenzstatus wird geprüft…</div>
+    }
+    else if (status is not null)
+    {
+        <div class="message @(status.IsValid ? "message-success" : "message-error")" role="status">
+            <strong>@Title(status.Status)</strong>
+            <span>@status.Message</span>
+        </div>
+
+        <div class="row-actions">
+            @if (status.IsValid)
+            {
+                <a class="button button-primary" href="/">Zur Übersicht</a>
+            }
+            else
+            {
+                <button class="button button-primary" type="button" @onclick="RefreshAsync">Erneut prüfen</button>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private LicenseStatusResponse? status;
+    private bool loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        status = await LicenseService.GetStatusAsync();
+        loading = false;
+    }
+
+    private async Task RefreshAsync()
+    {
+        loading = true;
+        status = await LicenseService.GetStatusAsync(forceRefresh: true);
+        loading = false;
+    }
+
+    private static string Title(string value) => value switch
+    {
+        LicenseStatusCodes.Active => "Lizenz aktiv",
+        LicenseStatusCodes.Inactive => "Lizenz nicht aktiv",
+        LicenseStatusCodes.NotFound => "Lizenz nicht gefunden",
+        _ => "Lizenzprüfung nicht möglich"
+    };
+}

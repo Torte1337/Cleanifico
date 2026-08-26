@@ -4,6 +4,7 @@ public static class SecurityPolicies
 {
     public const string ActiveUser = "ActiveUser";
     public const string OfficeAccess = "OfficeAccess";
+    public const string LicensedProduct = "LicensedProduct";
     public const string ManageCleaningTypes = "ManageCleaningTypes";
     public const string ViewCleaningTypes = "ViewCleaningTypes";
     public const string ManageTimeTypes = "ManageTimeTypes";

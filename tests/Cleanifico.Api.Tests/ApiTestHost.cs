@@ -4,6 +4,7 @@ using Cleanifico.Api;
 using Cleanifico.Application.CleaningTypes;
 using Cleanifico.Application.CleaningObjects;
 using Cleanifico.Application.Customers;
+using Cleanifico.Application.Licensing;
 using Cleanifico.Application.Security;
 using Cleanifico.Application.TimeTypes;
 using Cleanifico.Contracts.Security;
@@ -54,44 +55,51 @@ internal sealed class ApiTestHost : IAsyncDisposable
     public FakeCustomerRepository CustomerRepository { get; }
 
     public static async Task<ApiTestHost> StartAsync(params CleaningType[] seed)
-        => await StartCoreAsync(SecurityRoles.Owner, false, seed, [], [], []);
+        => await StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Active, seed, [], [], []);
 
     public static Task<ApiTestHost> StartAnonymousAsync(params CleaningType[] seed) =>
-        StartCoreAsync(null, true, seed, [], [], []);
+        StartCoreAsync(null, true, LicenseStatus.Active, seed, [], [], []);
 
     public static Task<ApiTestHost> StartAsRoleAsync(string role, params CleaningType[] seed) =>
-        StartCoreAsync(role, false, seed, [], [], []);
+        StartCoreAsync(role, false, LicenseStatus.Active, seed, [], [], []);
 
     public static Task<ApiTestHost> StartWithTimeTypesAsync(params TimeType[] seed) =>
-        StartCoreAsync(SecurityRoles.Owner, false, [], seed, [], []);
+        StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Active, [], seed, [], []);
 
     public static Task<ApiTestHost> StartAnonymousWithTimeTypesAsync(params TimeType[] seed) =>
-        StartCoreAsync(null, true, [], seed, [], []);
+        StartCoreAsync(null, true, LicenseStatus.Active, [], seed, [], []);
 
     public static Task<ApiTestHost> StartAsRoleWithTimeTypesAsync(string role, params TimeType[] seed) =>
-        StartCoreAsync(role, false, [], seed, [], []);
+        StartCoreAsync(role, false, LicenseStatus.Active, [], seed, [], []);
 
     public static Task<ApiTestHost> StartWithCustomersAsync(params Customer[] seed) =>
-        StartCoreAsync(SecurityRoles.Owner, false, [], [], seed, []);
+        StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Active, [], [], seed, []);
 
     public static Task<ApiTestHost> StartAnonymousWithCustomersAsync(params Customer[] seed) =>
-        StartCoreAsync(null, true, [], [], seed, []);
+        StartCoreAsync(null, true, LicenseStatus.Active, [], [], seed, []);
 
     public static Task<ApiTestHost> StartAsRoleWithCustomersAsync(string role, params Customer[] seed) =>
-        StartCoreAsync(role, false, [], [], seed, []);
+        StartCoreAsync(role, false, LicenseStatus.Active, [], [], seed, []);
 
     public static Task<ApiTestHost> StartWithObjectsAsync(Customer[] customers, params CleaningObject[] seed) =>
-        StartCoreAsync(SecurityRoles.Owner, false, [], [], customers, seed);
+        StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Active, [], [], customers, seed);
 
     public static Task<ApiTestHost> StartAnonymousWithObjectsAsync() =>
-        StartCoreAsync(null, true, [], [], [], []);
+        StartCoreAsync(null, true, LicenseStatus.Active, [], [], [], []);
 
     public static Task<ApiTestHost> StartAsRoleWithObjectsAsync(string role, Customer[] customers, params CleaningObject[] seed) =>
-        StartCoreAsync(role, false, [], [], customers, seed);
+        StartCoreAsync(role, false, LicenseStatus.Active, [], [], customers, seed);
+
+    public static Task<ApiTestHost> StartWithLicenseAsync(
+        LicenseStatus licenseStatus,
+        string? role = SecurityRoles.Owner,
+        bool anonymous = false) =>
+        StartCoreAsync(role, anonymous, licenseStatus, [], [], [], []);
 
     private static async Task<ApiTestHost> StartCoreAsync(
         string? role,
         bool anonymous,
+        LicenseStatus licenseStatus,
         CleaningType[] seed,
         TimeType[] timeTypeSeed,
         Customer[] customerSeed,
@@ -119,6 +127,7 @@ internal sealed class ApiTestHost : IAsyncDisposable
                 services.AddSingleton<ICustomerRepository>(customerRepository);
                 services.AddSingleton<ITimeTypeRepository>(timeTypeRepository);
                 services.AddSingleton<IUserAdministrationService>(userService);
+                services.AddSingleton<ILicenseService>(new FakeLicenseService(licenseStatus));
                 services.AddSingleton(new TestIdentityOptions(role, anonymous));
                 services.AddAuthentication(options =>
                     {
@@ -160,6 +169,12 @@ internal sealed class ApiTestHost : IAsyncDisposable
         await application.StopAsync();
         await application.DisposeAsync();
     }
+}
+
+internal sealed class FakeLicenseService(LicenseStatus status) : ILicenseService
+{
+    public Task<LicenseCheckResult> CheckAsync(CancellationToken cancellationToken = default) =>
+        Task.FromResult(new LicenseCheckResult(status));
 }
 
 internal sealed record TestIdentityOptions(string? Role, bool Anonymous);

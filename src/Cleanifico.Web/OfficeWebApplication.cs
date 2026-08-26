@@ -2,9 +2,11 @@ using Cleanifico.Contracts.Security;
 using Cleanifico.Web.ApiClients;
 using Cleanifico.Web.Authentication;
 using Cleanifico.Web.Components;
+using Cleanifico.Web.Licensing;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Cleanifico.Web;
 
@@ -25,6 +27,8 @@ public static class OfficeWebApplication
         builder.Services.AddCascadingAuthenticationState();
         builder.Services.AddHttpContextAccessor();
         builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddScoped<IOfficeLicenseService, OfficeLicenseService>();
+        builder.Services.AddScoped<IAuthorizationHandler, OfficeLicenseAuthorizationHandler>();
 
         var cleanificoApiBaseUrl = builder.Configuration["CleanificoApi:BaseUrl"];
         if (!Uri.TryCreate(cleanificoApiBaseUrl, UriKind.Absolute, out var cleanificoApiUri))
@@ -122,22 +126,24 @@ public static class OfficeWebApplication
         services.AddAuthorizationBuilder()
             .AddPolicy(SecurityPolicies.OfficeAccess, policy =>
                 policy.RequireRole([.. SecurityRoles.Office]))
+            .AddPolicy(SecurityPolicies.LicensedProduct, policy =>
+                policy.RequireAuthenticatedUser().AddRequirements(new OfficeLicenseRequirement()))
             .AddPolicy(SecurityPolicies.ViewCleaningTypes, policy =>
-                policy.RequireRole([.. SecurityRoles.Office]))
+                policy.RequireRole([.. SecurityRoles.Office]).AddRequirements(new OfficeLicenseRequirement()))
             .AddPolicy(SecurityPolicies.ManageCleaningTypes, policy =>
-                policy.RequireRole([.. SecurityRoles.Administrators]))
+                policy.RequireRole([.. SecurityRoles.Administrators]).AddRequirements(new OfficeLicenseRequirement()))
             .AddPolicy(SecurityPolicies.ViewCustomers, policy =>
-                policy.RequireRole([.. SecurityRoles.Office]))
+                policy.RequireRole([.. SecurityRoles.Office]).AddRequirements(new OfficeLicenseRequirement()))
             .AddPolicy(SecurityPolicies.ManageCustomers, policy =>
-                policy.RequireRole([.. SecurityRoles.Administrators]))
+                policy.RequireRole([.. SecurityRoles.Administrators]).AddRequirements(new OfficeLicenseRequirement()))
             .AddPolicy(SecurityPolicies.ViewObjects, policy =>
-                policy.RequireRole([.. SecurityRoles.Office]))
+                policy.RequireRole([.. SecurityRoles.Office]).AddRequirements(new OfficeLicenseRequirement()))
             .AddPolicy(SecurityPolicies.ManageObjects, policy =>
-                policy.RequireRole([.. SecurityRoles.Administrators]))
+                policy.RequireRole([.. SecurityRoles.Administrators]).AddRequirements(new OfficeLicenseRequirement()))
             .AddPolicy(SecurityPolicies.ViewTimeTypes, policy =>
-                policy.RequireRole([.. SecurityRoles.Office]))
+                policy.RequireRole([.. SecurityRoles.Office]).AddRequirements(new OfficeLicenseRequirement()))
             .AddPolicy(SecurityPolicies.ManageTimeTypes, policy =>
-                policy.RequireRole([.. SecurityRoles.Administrators]))
+                policy.RequireRole([.. SecurityRoles.Administrators]).AddRequirements(new OfficeLicenseRequirement()))
             .AddPolicy(SecurityPolicies.ManageUsers, policy =>
                 policy.RequireRole([.. SecurityRoles.Administrators]))
             .AddPolicy(SecurityPolicies.ManageRoles, policy =>

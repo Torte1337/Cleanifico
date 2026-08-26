@@ -38,9 +38,9 @@ public sealed class CleaningObject
     }
 
     public Guid Id { get; private set; }
-    public string ObjectNumber { get; private set; }
+    public string ObjectNumber { get; private set; } = string.Empty;
     public Guid CustomerId { get; private set; }
-    public string Name { get; private set; }
+    public string Name { get; private set; } = string.Empty;
     public string? Street { get; private set; }
     public string? PostalCode { get; private set; }
     public string? City { get; private set; }

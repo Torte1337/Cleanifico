@@ -130,11 +130,17 @@ Passwörter erfordern mindestens zwölf Zeichen sowie Groß-/Kleinbuchstaben, Za
 
 ## FergensHub-Lizenzierung
 
-FergensHub bleibt die zentrale Quelle für Tenant, Produkt, Lizenzstatus, Laufzeit, Tarif, Features, Limits und Tenant-Endpunkt. Cleanifico leitet Lizenzentscheidungen nicht aus einer konkurrierenden lokalen Lizenzarchitektur ab. Vor der Implementierung werden vorhandene Assetfico-/FergensHub-Verträge und Fehlerbehandlungs-Patterns geprüft; sie liegen aktuell nicht in diesem Repository vor. Authentifizierung, Autorisierung und Lizenzprüfung sind zwingende Pre-Production-Gates.
+FergensHub bleibt die zentrale Quelle für Tenant-, Produkt- und Featurezuordnungen. Die geprüfte Referenz modelliert `Tenant → TenantProduct → TenantProductFeature`; ein Produkt ist effektiv aktiv, wenn Tenant, Product und TenantProduct aktiv sind. Ein Feature ist zusätzlich nur effektiv, wenn ProductFeature aktiv und TenantProductFeature aktiviert ist. Das vorhandene FergensHub-Projekt stellt diese Konfiguration bisher ausschließlich intern bereit: eine öffentliche/eigenständige Lizenzabfrage, externe DTOs, Client-Authentifizierung, Laufzeit-/Ablaufdaten, Tarife oder Limits existieren nicht. Im bereitgestellten Projektstamm waren weder Assetfico noch eine Discovery-Implementierung vorhanden.
+
+Cleanifico besitzt deshalb eine interne `ILicenseService`-Grenze mit den aus dem realen Modell ableitbaren Zuständen `Active`, `Inactive`, `NotFound` und dem technischen Zustand `Unavailable`. `Expired` wird nicht vorweggenommen, weil FergensHub derzeit keine Laufzeit modelliert. Der produktive Platzhalteradapter erfindet keinen HTTP-Endpunkt und liefert fail-closed `Unavailable`. Es gibt keine lokale Lizenzdatenbank, keine konfigurationsbasierte Freischaltung und keinen Secret-/URL-Platzhalter, der eine nicht vorhandene Integration vortäuscht. Sobald FergensHub einen authentifizierten externen Query-Contract veröffentlicht, ersetzt ein Infrastructure-Adapter den Platzhalter; Tenant-/Produktidentifikation, Endpoint, Credentials, Cache- oder Grace-Period werden dann ausschließlich aus Settings, Environment Variables oder User Secrets bezogen und nach dem realen Contract validiert.
+
+API-Business-Policies für CleaningTypes, TimeTypes, Customers und CleaningObjects enthalten zusätzlich `LicensedProductRequirement`. Anonyme Aufrufe bleiben `401`; bei gültiger Lizenz und fehlender Rolle bleibt `403`. Ungültige oder nicht prüfbare Lizenzen liefern ein kontrolliertes `403 ProblemDetails` ohne interne URL oder Exception. `/api/license/status` ist für aktive Benutzer lizenzunabhängig erreichbar. `/health`, Login, Logout, Sessionprüfung und Benutzeradministration werden nicht durch die Geschäftslizenz blockiert.
+
+Cleanifico Office spiegelt dieselbe zusätzliche Policy-Anforderung für `/reinigungstypen`, `/zeittypen`, `/kunden` und `/objekte`. Der Status wird über die authentifizierte Cleanifico API bezogen und pro Server-Circuit eine Minute gecacht; `/lizenz` zeigt kontrollierte deutsche Zustände und erlaubt eine erzwungene erneute Prüfung. Rollenprüfungen bleiben vollständig bestehen.
 
 ## Discovery
 
-Die bestehende Discovery API soll später `Firmencode + Produkt` in Tenant-ID, Firmenname, API-Basis-URL und API-Version auflösen. Dies ist insbesondere für `Cleanifico.Mobile` vorgesehen. Discovery-Verträge sind noch nicht im Repository vorhanden und werden nicht vorab neu erfunden.
+Die geplante Discovery API soll später `Firmencode + Produkt` in Tenant-ID, Firmenname, API-Basis-URL und API-Version auflösen. Dies ist insbesondere für `Cleanifico.Mobile` vorgesehen. Im geprüften Projektstamm existiert kein Discovery-Projekt oder wiederverwendbarer Contract; Prompt 007 führt deshalb keine Discovery- oder Tenant-Auswahl-Scheinintegration ein.
 
 ## Mobile, Storage und Hintergrunddienste
 
@@ -154,6 +160,7 @@ xUnit prüft derzeit:
 - Identity-Benutzer, Passwort-Hashing, Login, Inaktivität, Lockout, Rollen, Owner-Schutz und sicheren Bootstrap,
 - Cleaning-Type-, TimeType-, Customer- und CleaningObject-HTTP-Operationen sowie rollenabhängige `401`-/`403`-Fälle über einen lokalen Kestrel-Host,
 - Login- und Routenschutz der eigenständigen Web-App,
+- gültige, inaktive, fehlende und nicht prüfbare Lizenzzustände, die Kombination mit `401`/`403`, den lizenzunabhängigen Healthcheck und die Office-Lizenzanzeige,
 - die Abhängigkeitsfreiheit der Domain,
 - die exakten Projekt-Referenzen von Application, Infrastructure, API und Web,
 - die Vollständigkeit der elf Solution-Projekte,

@@ -41,8 +41,8 @@ public sealed class Customer
     }
 
     public Guid Id { get; private set; }
-    public string CustomerNumber { get; private set; }
-    public string CompanyName { get; private set; }
+    public string CustomerNumber { get; private set; } = string.Empty;
+    public string CompanyName { get; private set; } = string.Empty;
     public string? ContactFirstName { get; private set; }
     public string? ContactLastName { get; private set; }
     public string? Email { get; private set; }

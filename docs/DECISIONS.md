@@ -249,3 +249,13 @@ Entscheidung: `CleaningObject` bildet den tenantlokalen Reinigungsort mit eigene
 Grund: Auftraggeber und Einsatzort bleiben fachlich getrennt, während Referenzintegrität und spätere historische Nachvollziehbarkeit ohne Cascade Delete geschützt sind.
 
 Datum: 2026-08-26
+
+## DEC-026 – Lizenzgrenze ist zentral, zusätzlich und fail-closed
+
+Status: Accepted
+
+Entscheidung: Cleanifico kapselt die zentrale FergensHub-Prüfung hinter `ILicenseService`. Die Business-Policies verlangen zusätzlich zu aktivem Benutzer und Rolle eine gültige Lizenz. Solange FergensHub keinen belastbaren externen Query-Contract besitzt, liefert der Infrastructure-Adapter kontrolliert `Unavailable` und sperrt Businessfunktionen; es gibt keine lokale Lizenzdatenbank, Konfigurationsfreischaltung oder erfundene HTTP-API. Health, Login/Logout, Sessionprüfung und Lizenzstatus bleiben erreichbar.
+
+Grund: Die Sicherheitsgrenze ist jetzt eindeutig und testbar, ohne eine konkurrierende Lizenzquelle oder eine Scheinintegration zu schaffen. Der spätere echte FergensHub-Adapter kann den Port ersetzen, sobald Identifikation, Authentifizierung, DTOs und Fehlersemantik veröffentlicht sind.
+
+Datum: 2026-08-26

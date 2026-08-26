@@ -32,6 +32,8 @@
 - Spätere Zeitbuchungen müssen historisch relevante Zeittyp-Eigenschaften als Snapshot speichern.
 - Technische Audit-Zeitstempel grundsätzlich in UTC speichern.
 - Sicherheitsentscheidungen zentral über Rollen, Policies und Application-Services abbilden; Endpunkte nicht ad hoc nach Rollennamen verzweigen.
+- Geschäftliche API- und Office-Bereiche benötigen zusätzlich eine gültige zentrale FergensHub-Lizenz; ohne belastbaren externen Contract gilt fail-closed und es darf keinen lokalen Lizenz-Bypass geben.
+- Lizenzierung ersetzt weder Authentifizierung noch Rollen-/Policy-Autorisierung; `/health`, Login und Logout bleiben unabhängig von der Geschäftslizenz erreichbar.
 - Passwörter, Tokens und sonstige Secrets weder fest codieren noch protokollieren oder als Contract ausgeben.
 - Sicherheitsprüfungen in Tests gezielt ersetzen, aber nicht pauschal deaktivieren.
 

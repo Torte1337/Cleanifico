@@ -1,5 +1,6 @@
 using Cleanifico.Api.Endpoints;
 using Cleanifico.Api.ErrorHandling;
+using Cleanifico.Api.Authorization;
 using Cleanifico.Application.CleaningObjects;
 using Cleanifico.Application.CleaningTypes;
 using Cleanifico.Application.Customers;
@@ -8,6 +9,7 @@ using Cleanifico.Contracts.Security;
 using Cleanifico.Infrastructure;
 using Cleanifico.Infrastructure.Security.Authorization;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 
 namespace Cleanifico.Api;
@@ -33,6 +35,7 @@ public static class ApiApplication
         builder.Services.AddScoped<ICustomerService, CustomerService>();
         builder.Services.AddScoped<ITimeTypeService, TimeTypeService>();
         builder.Services.AddScoped<ITimeTypeInitializer, TimeTypeInitializer>();
+        builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, LicenseAuthorizationResultHandler>();
 
         var connectionString = builder.Configuration.GetConnectionString(
             DependencyInjection.ConnectionStringName);
@@ -87,6 +90,7 @@ public static class ApiApplication
 
         app.MapHealthChecks("/health").AllowAnonymous();
         app.MapAuthenticationEndpoints();
+        app.MapLicenseEndpoints();
         app.MapUserAdministrationEndpoints();
         app.MapCleaningTypeEndpoints();
         app.MapCleaningObjectEndpoints();

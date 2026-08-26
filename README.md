@@ -13,6 +13,7 @@ Cleanifico ist eine mandantenfähige Betriebssoftware für Gebäudereinigungsunt
 - Kundenverwaltung für Auftraggeber mit Ansprechpartner, Verwaltungsadresse, Detailansicht und Lifecycle
 - Objektverwaltung mit verpflichtendem Kundenbezug, eigener Objektadresse, direktem Kontakt und Lifecycle
 - separate ASP.NET Core API mit geschützten Stammdaten- und Benutzer-Endpunkten; nur `GET /health` und Login sind anonym erreichbar
+- zusätzliche fail-closed FergensHub-Lizenzgrenze für alle vorhandenen fachlichen API- und Office-Bereiche
 - separate Blazor-Web-App für Cleanifico Office mit Login, `/kunden`, `/objekte`, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer`
 - fünf xUnit-Testprojekte mit Domain-, Application-, Identity-, EF-, Architektur-, API- und Web-Integrationstests
 - noch keine Lizenzprüfung, Discovery-, Mobile- oder sonstigen externen Integrationen

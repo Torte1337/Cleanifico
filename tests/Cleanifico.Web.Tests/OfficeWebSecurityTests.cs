@@ -2,7 +2,9 @@ using System.Net;
 using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Cleanifico.Contracts.Security;
+using Cleanifico.Contracts.Licensing;
 using Cleanifico.Web;
+using Cleanifico.Web.Licensing;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -171,6 +173,39 @@ public sealed class OfficeWebSecurityTests
         Assert.True(response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Redirect
             || !html.Contains("Verwalten Sie Reinigungsobjekte", StringComparison.Ordinal));
     }
+
+    [Theory]
+    [InlineData(LicenseStatusCodes.Inactive, "Lizenz nicht aktiv")]
+    [InlineData(LicenseStatusCodes.NotFound, "Lizenz nicht gefunden")]
+    [InlineData(LicenseStatusCodes.Unavailable, "Lizenzpr")]
+    public async Task LicensePage_ShowsControlledStatus(string licenseStatus, string expectedText)
+    {
+        await using var host = await OfficeWebTestHost.StartAsync(
+            SecurityRoles.Owner,
+            anonymous: false,
+            licenseStatus: licenseStatus);
+
+        using var response = await host.Client.GetAsync("/lizenz");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(expectedText, html, StringComparison.Ordinal);
+        Assert.DoesNotContain("http://", html, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task InvalidLicense_DoesNotRenderBusinessPage()
+    {
+        await using var host = await OfficeWebTestHost.StartAsync(
+            SecurityRoles.Owner,
+            anonymous: false,
+            licenseStatus: LicenseStatusCodes.Inactive);
+
+        using var response = await host.Client.GetAsync("/kunden");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.DoesNotContain("Verwalten Sie Auftraggeber, Ansprechpartner", html, StringComparison.Ordinal);
+    }
 }
 
 internal sealed class OfficeWebTestHost : IAsyncDisposable
@@ -185,7 +220,10 @@ internal sealed class OfficeWebTestHost : IAsyncDisposable
 
     public HttpClient Client { get; }
 
-    public static async Task<OfficeWebTestHost> StartAsync(string? role, bool anonymous)
+    public static async Task<OfficeWebTestHost> StartAsync(
+        string? role,
+        bool anonymous,
+        string licenseStatus = LicenseStatusCodes.Active)
     {
         var application = OfficeWebApplication.Build(
             [
@@ -197,6 +235,7 @@ internal sealed class OfficeWebTestHost : IAsyncDisposable
             services =>
             {
                 services.AddSingleton(new WebTestIdentity(role, anonymous));
+                services.AddSingleton<IOfficeLicenseService>(new FakeOfficeLicenseService(licenseStatus));
                 services.AddAuthentication(options =>
                     {
                         options.DefaultAuthenticateScheme = WebTestAuthenticationHandler.SchemeName;
@@ -225,6 +264,23 @@ internal sealed class OfficeWebTestHost : IAsyncDisposable
         await application.StopAsync();
         await application.DisposeAsync();
     }
+}
+
+internal sealed class FakeOfficeLicenseService(string status) : IOfficeLicenseService
+{
+    public Task<LicenseStatusResponse> GetStatusAsync(
+        bool forceRefresh = false,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new LicenseStatusResponse(
+            status,
+            status == LicenseStatusCodes.Active,
+            status switch
+            {
+                LicenseStatusCodes.Active => "Die Cleanifico-Lizenz ist aktiv.",
+                LicenseStatusCodes.Inactive => "Die Cleanifico-Lizenz ist nicht aktiv.",
+                LicenseStatusCodes.NotFound => "Für diese Cleanifico-Instanz wurde keine Lizenz gefunden.",
+                _ => "Die Lizenzprüfung ist derzeit nicht möglich."
+            }));
 }
 
 internal sealed record WebTestIdentity(string? Role, bool Anonymous);

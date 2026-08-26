@@ -1,19 +1,27 @@
 @inject NavigationManager Navigation
+@inject Cleanifico.Web.Licensing.IOfficeLicenseService LicenseService
 
 @code {
     [Parameter, EditorRequired]
     public AuthenticationState AuthenticationState { get; set; } = default!;
 
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender)
         {
             return;
         }
 
-        var destination = AuthenticationState.User.Identity?.IsAuthenticated == true
-            ? "/zugriff-verweigert"
-            : $"/login?returnUrl={Uri.EscapeDataString(new Uri(Navigation.Uri).PathAndQuery)}";
+        string destination;
+        if (AuthenticationState.User.Identity?.IsAuthenticated != true)
+        {
+            destination = $"/login?returnUrl={Uri.EscapeDataString(new Uri(Navigation.Uri).PathAndQuery)}";
+        }
+        else
+        {
+            var license = await LicenseService.GetStatusAsync();
+            destination = license.IsValid ? "/zugriff-verweigert" : "/lizenz";
+        }
 
         Navigation.NavigateTo(destination, forceLoad: true);
     }
