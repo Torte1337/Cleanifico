@@ -35,6 +35,12 @@
                     Objekte
                 </NavLink>
             </AuthorizeView>
+            <AuthorizeView Policy="@SecurityPolicies.ViewEmployees">
+                <NavLink href="/mitarbeiter">
+                    <span class="nav-icon" aria-hidden="true">♙</span>
+                    Mitarbeiter
+                </NavLink>
+            </AuthorizeView>
             <AuthorizeView Policy="@SecurityPolicies.ViewTimeTypes">
                 <NavLink href="/zeittypen">
                     <span class="nav-icon" aria-hidden="true">◷</span>

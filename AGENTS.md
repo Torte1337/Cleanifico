@@ -30,6 +30,8 @@
 - Kundennummern sind innerhalb der tenantlokalen Datenbank eindeutig und bleiben durch Benutzer änderbar.
 - Zeittypen sind frei konfigurierbare Datensätze, keine Enums; Standard-Zeittypen niemals sperren oder durch Initialisierung zurücksetzen.
 - Spätere Zeitbuchungen müssen historisch relevante Zeittyp-Eigenschaften als Snapshot speichern.
+- `Employee` ist die fachliche Personal-Entity und bleibt von `ApplicationUser` getrennt; eine spätere optionale Login-Verknüpfung darf nicht vorausgesetzt werden.
+- Personalnummern sind tenantlokal eindeutig und änderbar. Mitarbeiter dürfen nur ohne fachliche Referenzen physisch gelöscht werden; später ist Deaktivierung der reguläre Lifecycle.
 - Technische Audit-Zeitstempel grundsätzlich in UTC speichern.
 - Sicherheitsentscheidungen zentral über Rollen, Policies und Application-Services abbilden; Endpunkte nicht ad hoc nach Rollennamen verzweigen.
 - Geschäftliche API- und Office-Bereiche benötigen zusätzlich eine gültige zentrale FergensHub-Lizenz; ohne belastbaren externen Contract gilt fail-closed und es darf keinen lokalen Lizenz-Bypass geben.

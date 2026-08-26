@@ -269,3 +269,13 @@ Entscheidung: Cleanifico übernimmt AssetFicos lokalen License State und die sig
 Grund: Das Offline-Lease-Verfahren ist ein bereits implementiertes Fergenix-Muster, erlaubt kontrollierten Betrieb bei temporärer Nichterreichbarkeit und verhindert lokale Konfigurationsfreischaltungen. Das aktuelle FergensHub-Repository muss die bereits definierten Runtime-Verträge noch serverseitig implementieren; Cleanifico erfindet dafür keinen zweiten Contract.
 
 Datum: 2026-08-26
+
+## DEC-028 – Fachliche Mitarbeiter bleiben von Identity getrennt
+
+Status: Accepted
+
+Entscheidung: `Employee` ist eine eigenständige tenantlokale Personal-Entity und besitzt zunächst keine verpflichtende Beziehung zu `ApplicationUser`. Beschäftigungsarten werden als frei pflegbarer Text statt als Enum gespeichert. Personalnummern sind tenantlokal eindeutig und änderbar. Physisches Löschen ist nur ohne fachliche Referenzen zulässig; spätere referenzierende Module müssen Löschen per Fremdschlüssel verhindern.
+
+Grund: Personalstammdaten müssen auch für Beschäftigte ohne Login existieren, während technische Benutzerkonten nicht automatisch Personal darstellen. Frei pflegbare Beschäftigungsarten vermeiden eine unbegründete globale HR-Taxonomie, und der Lifecycle bleibt für spätere historische Daten erweiterbar.
+
+Datum: 2026-08-26

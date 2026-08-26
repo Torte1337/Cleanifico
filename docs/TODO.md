@@ -10,7 +10,8 @@
 - [ ] In FergensHub Lizenzschlüssel, Installationslimit/-widerruf, Refresh-Credentials, 30-Tage-Leases, 14-Tage-Grace und ECDSA-Signierung entsprechend dem AssetFico-Vertrag persistieren und verwalten; numerische Limits nur nach Erweiterung des gemeinsamen Lease-Vertrags ergänzen.
 - [ ] Produktiven Data-Protection-Keyring für API und Web persistent, zugriffsgeschützt und at rest verschlüsselt betreiben.
 - [ ] Passwort-Reset, Einladung/Initialpasswort-Wechsel und MFA mit konkreten Produktanforderungen ergänzen; keine öffentliche Registrierung einführen.
-- [ ] Eine optionale fachliche Verknüpfung von Benutzerkonto und späterem Mitarbeiterdatensatz erst mit dem Personalmodul festlegen.
+- [ ] Eine optionale Verknüpfung von `Employee` und `ApplicationUser` erst mit konkreten App-Zugangsanforderungen festlegen; keine automatische Zuordnung ableiten.
+- [ ] Bei Verträgen, Arbeitszeiten, Objektzuweisungen, Einsätzen, Schlüsseln oder historischen Personaldaten Restrict-Fremdschlüssel auf Employee ergänzen und physisches Löschen dann verhindern.
 - [ ] Beim späteren `TimeEntry`-Modul die beschlossenen Zeittyp-Snapshots speichern und verwendete Zeittypen gegen physisches Löschen absichern.
 - [ ] Einen kontrollierten Rollout-Prozess für Migrationen über alle tenantlokalen Datenbanken definieren.
 - [ ] Echte MySQL-Integrationstests mit eindeutig isolierter, kurzlebiger Testdatenbank ergänzen; bis dahin bleiben EF-Metadaten- und HTTP-Tests bewusst datenbankfrei.
@@ -37,3 +38,4 @@
 - [x] Objektverwaltung mit verpflichtendem Customer-Bezug, eigener Objektadresse, CRUD/Lifecycle, API, Autorisierung, Migration, Kundendetail-Verknüpfung und Kunden-Löschschutz umgesetzt.
 - [x] FergensHub-Referenz gezielt analysiert und eine zusätzliche fail-closed Lizenzgrenze mit zentralen API-/Office-Policies, kontrollierter Statusanzeige und Tests umgesetzt; keine externe Scheinintegration erfunden.
 - [x] AssetFico-Lizenzierung gezielt analysiert und das installationsgebundene signierte Lease-Muster einschließlich lokalem State, Aktivierung/Refresh, Grace, Hintergrund-Erneuerung und zentraler Policy-Grenze auf Cleanifico übertragen.
+- [x] Fachliche Mitarbeiterverwaltung mit Personalstammdaten, frei pflegbarer Beschäftigungsart, Persistenz, API, Policies, Office-Seite und Trennung von Identity umgesetzt.

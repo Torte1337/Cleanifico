@@ -4,6 +4,7 @@ using Cleanifico.Api.Authorization;
 using Cleanifico.Application.CleaningObjects;
 using Cleanifico.Application.CleaningTypes;
 using Cleanifico.Application.Customers;
+using Cleanifico.Application.Employees;
 using Cleanifico.Application.TimeTypes;
 using Cleanifico.Contracts.Security;
 using Cleanifico.Infrastructure;
@@ -33,6 +34,7 @@ public static class ApiApplication
         builder.Services.AddScoped<ICleaningTypeService, CleaningTypeService>();
         builder.Services.AddScoped<ICleaningObjectService, CleaningObjectService>();
         builder.Services.AddScoped<ICustomerService, CustomerService>();
+        builder.Services.AddScoped<IEmployeeService, EmployeeService>();
         builder.Services.AddScoped<ITimeTypeService, TimeTypeService>();
         builder.Services.AddScoped<ITimeTypeInitializer, TimeTypeInitializer>();
         builder.Services.AddSingleton<IAuthorizationMiddlewareResultHandler, LicenseAuthorizationResultHandler>();
@@ -95,6 +97,7 @@ public static class ApiApplication
         app.MapCleaningTypeEndpoints();
         app.MapCleaningObjectEndpoints();
         app.MapCustomerEndpoints();
+        app.MapEmployeeEndpoints();
         app.MapTimeTypeEndpoints();
 
         return app;

@@ -13,6 +13,8 @@ public static class SecurityPolicies
     public const string ViewCustomers = "ViewCustomers";
     public const string ManageObjects = "ManageObjects";
     public const string ViewObjects = "ViewObjects";
+    public const string ManageEmployees = "ManageEmployees";
+    public const string ViewEmployees = "ViewEmployees";
     public const string ManageUsers = "ManageUsers";
     public const string ManageRoles = "ManageRoles";
     public const string AdministrationAccess = "AdministrationAccess";

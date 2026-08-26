@@ -3,7 +3,9 @@ using System.Security.Claims;
 using System.Text.Encodings.Web;
 using Cleanifico.Contracts.Security;
 using Cleanifico.Contracts.Licensing;
+using Cleanifico.Contracts.Employees;
 using Cleanifico.Web;
+using Cleanifico.Web.ApiClients;
 using Cleanifico.Web.Licensing;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Builder;
@@ -175,6 +177,34 @@ public sealed class OfficeWebSecurityTests
     }
 
     [Theory]
+    [InlineData(SecurityRoles.Owner, true)]
+    [InlineData(SecurityRoles.Administrator, true)]
+    [InlineData(SecurityRoles.Dispatcher, false)]
+    [InlineData(SecurityRoles.ObjectManager, false)]
+    public async Task OfficeRoles_CanOpenEmployeesWithRoleAppropriateActions(string role, bool canManage)
+    {
+        await using var host = await OfficeWebTestHost.StartAsync(role, anonymous: false);
+        using var response = await host.Client.GetAsync("/mitarbeiter");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains("Verwalten Sie Personalstammdaten", html, StringComparison.Ordinal);
+        Assert.Contains("P-100", html, StringComparison.Ordinal);
+        Assert.Equal(canManage, html.Contains("Mitarbeiter anlegen", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task EmployeeRole_CannotOpenEmployeeAdministration()
+    {
+        await using var host = await OfficeWebTestHost.StartAsync(SecurityRoles.Employee, anonymous: false);
+        using var response = await host.Client.GetAsync("/mitarbeiter");
+        var html = await response.Content.ReadAsStringAsync();
+
+        Assert.True(response.StatusCode is HttpStatusCode.Forbidden or HttpStatusCode.Redirect
+            || !html.Contains("Verwalten Sie Personalstammdaten", StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData(LicenseStatusCodes.NotActivated, "Installation nicht aktiviert")]
     [InlineData(LicenseStatusCodes.Expired, "Lizenz abgelaufen")]
     [InlineData(LicenseStatusCodes.Invalid, "Lizenzzustand ung")]
@@ -236,6 +266,7 @@ internal sealed class OfficeWebTestHost : IAsyncDisposable
             {
                 services.AddSingleton(new WebTestIdentity(role, anonymous));
                 services.AddSingleton<IOfficeLicenseService>(new FakeOfficeLicenseService(licenseStatus));
+                services.AddSingleton<IEmployeesApiClient>(new FakeEmployeesApiClient());
                 services.AddAuthentication(options =>
                     {
                         options.DefaultAuthenticateScheme = WebTestAuthenticationHandler.SchemeName;
@@ -264,6 +295,41 @@ internal sealed class OfficeWebTestHost : IAsyncDisposable
         await application.StopAsync();
         await application.DisposeAsync();
     }
+}
+
+internal sealed class FakeEmployeesApiClient : IEmployeesApiClient
+{
+    private readonly EmployeeResponse employee = new(
+        Guid.Parse("22222222-2222-2222-2222-222222222222"),
+        "P-100",
+        "Erika",
+        "Muster",
+        "Musterstraße 1",
+        "10115",
+        "Berlin",
+        "Deutschland",
+        "erika@example.test",
+        "+49 30 123",
+        null,
+        new DateOnly(1990, 1, 1),
+        new DateOnly(2026, 1, 1),
+        null,
+        "Vollzeit",
+        40,
+        173,
+        null,
+        true,
+        new DateTime(2026, 8, 26, 8, 0, 0, DateTimeKind.Utc),
+        new DateTime(2026, 8, 26, 8, 0, 0, DateTimeKind.Utc));
+
+    public Task<IReadOnlyList<EmployeeResponse>> GetAllAsync(string? search, bool? isActive, CancellationToken cancellationToken = default) =>
+        Task.FromResult<IReadOnlyList<EmployeeResponse>>([employee]);
+    public Task<EmployeeResponse> GetByIdAsync(Guid id, CancellationToken cancellationToken = default) => Task.FromResult(employee);
+    public Task<EmployeeResponse> CreateAsync(CreateEmployeeRequest request, CancellationToken cancellationToken = default) => Task.FromResult(employee);
+    public Task<EmployeeResponse> UpdateAsync(Guid id, UpdateEmployeeRequest request, CancellationToken cancellationToken = default) => Task.FromResult(employee);
+    public Task ActivateAsync(Guid id, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task DeactivateAsync(Guid id, CancellationToken cancellationToken = default) => Task.CompletedTask;
+    public Task DeleteAsync(Guid id, CancellationToken cancellationToken = default) => Task.CompletedTask;
 }
 
 internal sealed class FakeOfficeLicenseService(string status) : IOfficeLicenseService

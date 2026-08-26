@@ -1,6 +1,7 @@
 using Cleanifico.Domain.CleaningObjects;
 using Cleanifico.Domain.CleaningTypes;
 using Cleanifico.Domain.Customers;
+using Cleanifico.Domain.Employees;
 using Cleanifico.Domain.TimeTypes;
 using Cleanifico.Infrastructure.Persistence.Initialization;
 using Cleanifico.Infrastructure.Security.Identity;
@@ -18,6 +19,8 @@ public sealed class CleanificoDbContext(DbContextOptions<CleanificoDbContext> op
     public DbSet<CleaningType> CleaningTypes => Set<CleaningType>();
 
     public DbSet<Customer> Customers => Set<Customer>();
+
+    public DbSet<Employee> Employees => Set<Employee>();
 
     public DbSet<TimeType> TimeTypes => Set<TimeType>();
 

@@ -1,0 +1,288 @@
+@page "/mitarbeiter"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = SecurityPolicies.ViewEmployees)]
+@using Cleanifico.Contracts.Employees
+@using Cleanifico.Web.ApiClients
+@inject IEmployeesApiClient ApiClient
+
+<PageTitle>Mitarbeiter | Cleanifico Office</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Personal</p>
+        <h1>Mitarbeiter</h1>
+        <p>Verwalten Sie Personalstammdaten, Kontaktdaten und Beschäftigungsumfang.</p>
+    </div>
+    <AuthorizeView Policy="@SecurityPolicies.ManageEmployees">
+        <button class="button button-primary" type="button" @onclick="OpenCreateDialog">＋ Mitarbeiter anlegen</button>
+    </AuthorizeView>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(feedbackMessage))
+{
+    <div class="message message-success" role="status">@feedbackMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="message message-error" role="alert">
+        <span>@errorMessage</span><button type="button" @onclick="LoadAsync">Erneut versuchen</button>
+    </div>
+}
+
+<section class="content-card">
+    <form class="toolbar" @onsubmit="LoadAsync" @onsubmit:preventDefault>
+        <label class="search-field">
+            <span aria-hidden="true">⌕</span>
+            <input aria-label="Mitarbeiter suchen" placeholder="Personalnummer, Name, Kontakt oder Ort..." @bind="search" />
+        </label>
+        <label class="status-filter">
+            <span>Status</span>
+            <select @bind="statusFilter" @bind:after="LoadAsync">
+                <option value="all">Alle</option>
+                <option value="active">Aktiv</option>
+                <option value="inactive">Inaktiv</option>
+            </select>
+        </label>
+        <button class="button button-secondary" type="submit">Suchen</button>
+    </form>
+
+    @if (isLoading)
+    {
+        <div class="loading-state" role="status">Mitarbeiter werden geladen…</div>
+    }
+    else if (employees.Count == 0)
+    {
+        <div class="empty-state"><strong>Keine Mitarbeiter gefunden</strong><p>Passen Sie Suche oder Filter an.</p></div>
+    }
+    else
+    {
+        <div class="table-scroll">
+            <table>
+                <thead><tr><th>Personalnummer</th><th>Name</th><th>Beschäftigungsart</th><th>Wochenstunden</th><th>Ort</th><th>Kontakt</th><th>Status</th><th>Aktionen</th></tr></thead>
+                <tbody>
+                @foreach (EmployeeResponse employee in employees)
+                {
+                    <tr class="@(employee.IsActive ? null : "inactive-row")">
+                        <td><span class="number-chip">@employee.EmployeeNumber</span></td>
+                        <td><strong>@EmployeeName(employee)</strong></td>
+                        <td>@FormatOrDash(employee.EmploymentType)</td>
+                        <td>@FormatHours(employee.WeeklyHours)</td>
+                        <td>@FormatOrDash(employee.City)</td>
+                        <td class="contact-cell"><span>@FormatOrDash(employee.Email)</span><small>@PreferredPhone(employee)</small></td>
+                        <td><span class="status-badge @(employee.IsActive ? "active" : "inactive")">@(employee.IsActive ? "Aktiv" : "Inaktiv")</span></td>
+                        <td><div class="row-actions">
+                            <button type="button" @onclick="() => OpenDetailsAsync(employee.Id)">Details</button>
+                            <AuthorizeView Policy="@SecurityPolicies.ManageEmployees">
+                                <Authorized>
+                                    <button type="button" @onclick="() => OpenEditDialog(employee)">Bearbeiten</button>
+                                    @if (employee.IsActive)
+                                    {
+                                        <button type="button" @onclick="() => ConfirmDeactivate(employee)">Deaktivieren</button>
+                                    }
+                                    else
+                                    {
+                                        <button type="button" @onclick="() => ActivateAsync(employee)">Reaktivieren</button>
+                                    }
+                                    <button class="danger-action" type="button" @onclick="() => ConfirmDelete(employee)">Löschen</button>
+                                </Authorized>
+                            </AuthorizeView>
+                        </div></td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@if (detailEmployee is not null)
+{
+    <div class="modal-backdrop">
+        <section class="modal detail-modal" role="dialog" aria-modal="true" aria-labelledby="employee-detail-title">
+            <header><div><p class="eyebrow">Mitarbeiterdetails</p><h2 id="employee-detail-title">@EmployeeName(detailEmployee)</h2><span class="detail-number">@detailEmployee.EmployeeNumber</span></div><button class="icon-button" type="button" aria-label="Details schließen" @onclick="CloseDetails">×</button></header>
+            <div class="detail-grid">
+                <section><h3>Stammdaten</h3><dl>
+                    <dt>Personalnummer</dt><dd>@detailEmployee.EmployeeNumber</dd>
+                    <dt>Vorname</dt><dd>@detailEmployee.FirstName</dd>
+                    <dt>Nachname</dt><dd>@detailEmployee.LastName</dd>
+                    <dt>Geburtsdatum</dt><dd>@FormatDate(detailEmployee.DateOfBirth)</dd>
+                    <dt>Status</dt><dd>@(detailEmployee.IsActive ? "Aktiv" : "Inaktiv")</dd>
+                </dl></section>
+                <section><h3>Adresse</h3><dl>
+                    <dt>Straße</dt><dd>@FormatOrDash(detailEmployee.Street)</dd>
+                    <dt>PLZ / Ort</dt><dd>@PostalCity(detailEmployee)</dd>
+                    <dt>Land</dt><dd>@FormatOrDash(detailEmployee.Country)</dd>
+                </dl></section>
+                <section><h3>Kontakt</h3><dl>
+                    <dt>E-Mail</dt><dd>@FormatOrDash(detailEmployee.Email)</dd>
+                    <dt>Telefon</dt><dd>@FormatOrDash(detailEmployee.Phone)</dd>
+                    <dt>Mobiltelefon</dt><dd>@FormatOrDash(detailEmployee.MobilePhone)</dd>
+                </dl></section>
+                <section><h3>Beschäftigung</h3><dl>
+                    <dt>Beschäftigungsart</dt><dd>@FormatOrDash(detailEmployee.EmploymentType)</dd>
+                    <dt>Beginn</dt><dd>@FormatDate(detailEmployee.EmploymentStartDate)</dd>
+                    <dt>Ende</dt><dd>@FormatDate(detailEmployee.EmploymentEndDate)</dd>
+                    <dt>Wochenstunden</dt><dd>@FormatHours(detailEmployee.WeeklyHours)</dd>
+                    <dt>Monatliche Sollstunden</dt><dd>@FormatHours(detailEmployee.MonthlyTargetHours)</dd>
+                </dl></section>
+                <section class="detail-wide"><h3>Notizen</h3><p class="notes">@FormatOrDash(detailEmployee.Notes)</p></section>
+            </div>
+            <footer><AuthorizeView Policy="@SecurityPolicies.ManageEmployees"><button class="button button-primary" type="button" @onclick="() => EditFromDetails(detailEmployee)">Bearbeiten</button></AuthorizeView><button class="button button-secondary" type="button" @onclick="CloseDetails">Schließen</button></footer>
+        </section>
+    </div>
+}
+
+@if (isEditDialogOpen)
+{
+    <div class="modal-backdrop">
+        <section class="modal edit-modal" role="dialog" aria-modal="true" aria-labelledby="employee-edit-title">
+            <header><div><p class="eyebrow">Personal</p><h2 id="employee-edit-title">@(editingId.HasValue ? "Mitarbeiter bearbeiten" : "Mitarbeiter anlegen")</h2></div><button class="icon-button" type="button" aria-label="Dialog schließen" @onclick="CloseEditDialog">×</button></header>
+            @if (!string.IsNullOrWhiteSpace(dialogErrorMessage)) { <div class="message message-error" role="alert">@dialogErrorMessage</div> }
+            <EditForm Model="formModel" OnValidSubmit="SaveAsync" FormName="employee-form">
+                <DataAnnotationsValidator />
+                <div class="form-grid">
+                    <div class="form-field"><label for="employee-number">Personalnummer</label><InputText id="employee-number" @bind-Value="formModel.EmployeeNumber" /><ValidationMessage For="() => formModel.EmployeeNumber" /></div>
+                    <div class="form-field"><label for="employee-first-name">Vorname</label><InputText id="employee-first-name" @bind-Value="formModel.FirstName" /><ValidationMessage For="() => formModel.FirstName" /></div>
+                    <div class="form-field"><label for="employee-last-name">Nachname</label><InputText id="employee-last-name" @bind-Value="formModel.LastName" /><ValidationMessage For="() => formModel.LastName" /></div>
+
+                    <h3 class="form-section-title">Adresse und Kontakt</h3>
+                    <div class="form-field form-field-wide"><label for="employee-street">Straße</label><InputText id="employee-street" @bind-Value="formModel.Street" /><ValidationMessage For="() => formModel.Street" /></div>
+                    <div class="form-field"><label for="employee-postal-code">PLZ</label><InputText id="employee-postal-code" @bind-Value="formModel.PostalCode" /><ValidationMessage For="() => formModel.PostalCode" /></div>
+                    <div class="form-field"><label for="employee-city">Ort</label><InputText id="employee-city" @bind-Value="formModel.City" /><ValidationMessage For="() => formModel.City" /></div>
+                    <div class="form-field"><label for="employee-country">Land</label><InputText id="employee-country" @bind-Value="formModel.Country" /><ValidationMessage For="() => formModel.Country" /></div>
+                    <div class="form-field"><label for="employee-email">E-Mail</label><InputText id="employee-email" type="email" @bind-Value="formModel.Email" /><ValidationMessage For="() => formModel.Email" /></div>
+                    <div class="form-field"><label for="employee-phone">Telefon</label><InputText id="employee-phone" type="tel" @bind-Value="formModel.Phone" /><ValidationMessage For="() => formModel.Phone" /></div>
+                    <div class="form-field"><label for="employee-mobile">Mobiltelefon</label><InputText id="employee-mobile" type="tel" @bind-Value="formModel.MobilePhone" /><ValidationMessage For="() => formModel.MobilePhone" /></div>
+
+                    <h3 class="form-section-title">Beschäftigung</h3>
+                    <div class="form-field"><label for="employee-birth-date">Geburtsdatum</label><InputDate id="employee-birth-date" @bind-Value="formModel.DateOfBirth" /></div>
+                    <div class="form-field"><label for="employee-start-date">Beschäftigungsbeginn</label><InputDate id="employee-start-date" @bind-Value="formModel.EmploymentStartDate" /></div>
+                    <div class="form-field"><label for="employee-end-date">Beschäftigungsende</label><InputDate id="employee-end-date" @bind-Value="formModel.EmploymentEndDate" /></div>
+                    <div class="form-field"><label for="employee-type">Beschäftigungsart</label><InputText id="employee-type" list="employment-types" @bind-Value="formModel.EmploymentType" /><datalist id="employment-types"><option value="Vollzeit"></option><option value="Teilzeit"></option><option value="Minijob"></option><option value="Werkstudent"></option><option value="Aushilfe"></option></datalist><ValidationMessage For="() => formModel.EmploymentType" /></div>
+                    <div class="form-field"><label for="employee-weekly-hours">Wochenstunden</label><InputNumber id="employee-weekly-hours" step="0.25" @bind-Value="formModel.WeeklyHours" /><ValidationMessage For="() => formModel.WeeklyHours" /></div>
+                    <div class="form-field"><label for="employee-monthly-hours">Monatliche Sollstunden</label><InputNumber id="employee-monthly-hours" step="0.25" @bind-Value="formModel.MonthlyTargetHours" /><ValidationMessage For="() => formModel.MonthlyTargetHours" /></div>
+                    <div class="form-field form-field-wide"><label for="employee-notes">Notizen</label><InputTextArea id="employee-notes" rows="4" @bind-Value="formModel.Notes" /><ValidationMessage For="() => formModel.Notes" /></div>
+                </div>
+                <footer><button class="button button-secondary" type="button" @onclick="CloseEditDialog">Abbrechen</button><button class="button button-primary" type="submit" disabled="@isSaving">@(isSaving ? "Wird gespeichert…" : "Speichern")</button></footer>
+            </EditForm>
+        </section>
+    </div>
+}
+
+@if (pendingConfirmation is not null)
+{
+    <div class="modal-backdrop"><section class="modal confirmation-modal" role="alertdialog" aria-modal="true">
+        <header><h2>@pendingConfirmation.Title</h2></header><p>@pendingConfirmation.Message</p>
+        @if (pendingConfirmation.Delete) { <p class="delete-warning">Diese Aktion löscht den Mitarbeiter endgültig. Sobald fachliche Referenzen bestehen, ist nur noch Deaktivieren zulässig.</p> }
+        <footer><button class="button button-secondary" type="button" @onclick="CancelConfirmation">Abbrechen</button><button class="button @(pendingConfirmation.Delete ? "button-danger" : "button-primary")" type="button" disabled="@isSaving" @onclick="ExecuteConfirmationAsync">@(pendingConfirmation.Delete ? "Endgültig löschen" : "Deaktivieren")</button></footer>
+    </section></div>
+}
+
+@code {
+    private readonly List<EmployeeResponse> employees = [];
+    private string search = string.Empty;
+    private string statusFilter = "all";
+    private string? errorMessage;
+    private string? feedbackMessage;
+    private string? dialogErrorMessage;
+    private bool isLoading;
+    private bool isSaving;
+    private bool isEditDialogOpen;
+    private Guid? editingId;
+    private UpdateEmployeeRequest formModel = new();
+    private EmployeeResponse? detailEmployee;
+    private PendingConfirmation? pendingConfirmation;
+
+    protected override Task OnInitializedAsync() => LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        isLoading = true; errorMessage = null;
+        try { employees.Clear(); employees.AddRange(await ApiClient.GetAllAsync(search, SelectedStatus())); }
+        catch (ApiClientException exception) { errorMessage = $"Laden fehlgeschlagen: {exception.Message}"; }
+        catch (HttpRequestException) { errorMessage = "Laden fehlgeschlagen: Die Cleanifico API ist nicht erreichbar."; }
+        finally { isLoading = false; }
+    }
+
+    private bool? SelectedStatus() => statusFilter switch { "active" => true, "inactive" => false, _ => null };
+    private void OpenCreateDialog() { editingId = null; formModel = new(); dialogErrorMessage = null; isEditDialogOpen = true; }
+    private void OpenEditDialog(EmployeeResponse employee) { editingId = employee.Id; formModel = ToForm(employee); dialogErrorMessage = null; isEditDialogOpen = true; }
+    private void EditFromDetails(EmployeeResponse employee) { detailEmployee = null; OpenEditDialog(employee); }
+    private void CloseEditDialog() { if (!isSaving) { isEditDialogOpen = false; dialogErrorMessage = null; } }
+    private void CloseDetails() => detailEmployee = null;
+
+    private async Task SaveAsync()
+    {
+        isSaving = true; dialogErrorMessage = null;
+        try
+        {
+            if (editingId is { } id) { await ApiClient.UpdateAsync(id, formModel); feedbackMessage = "Der Mitarbeiter wurde gespeichert."; }
+            else { await ApiClient.CreateAsync(ToCreate(formModel)); feedbackMessage = "Der Mitarbeiter wurde angelegt."; }
+            isEditDialogOpen = false; await LoadAsync();
+        }
+        catch (ApiClientException exception) { dialogErrorMessage = $"Speichern fehlgeschlagen: {exception.Message}"; }
+        catch (HttpRequestException) { dialogErrorMessage = "Speichern fehlgeschlagen: Die Cleanifico API ist nicht erreichbar."; }
+        finally { isSaving = false; }
+    }
+
+    private async Task OpenDetailsAsync(Guid id)
+    {
+        try { detailEmployee = await ApiClient.GetByIdAsync(id); }
+        catch (ApiClientException exception) { errorMessage = $"Details konnten nicht geladen werden: {exception.Message}"; }
+        catch (HttpRequestException) { errorMessage = "Details konnten nicht geladen werden: Die Cleanifico API ist nicht erreichbar."; }
+    }
+
+    private void ConfirmDeactivate(EmployeeResponse employee) => pendingConfirmation = new(employee, false, "Mitarbeiter deaktivieren", $"Möchten Sie „{EmployeeName(employee)}“ wirklich deaktivieren?");
+    private void ConfirmDelete(EmployeeResponse employee) => pendingConfirmation = new(employee, true, "Mitarbeiter endgültig löschen", $"Möchten Sie „{EmployeeName(employee)}“ endgültig löschen?");
+    private void CancelConfirmation() { if (!isSaving) pendingConfirmation = null; }
+
+    private async Task ExecuteConfirmationAsync()
+    {
+        if (pendingConfirmation is null) return;
+        PendingConfirmation confirmation = pendingConfirmation; isSaving = true;
+        try
+        {
+            if (confirmation.Delete) { await ApiClient.DeleteAsync(confirmation.Employee.Id); feedbackMessage = "Der Mitarbeiter wurde endgültig gelöscht."; }
+            else { await ApiClient.DeactivateAsync(confirmation.Employee.Id); feedbackMessage = "Der Mitarbeiter wurde deaktiviert."; }
+            pendingConfirmation = null; await LoadAsync();
+        }
+        catch (ApiClientException exception) { pendingConfirmation = null; errorMessage = exception.Message; }
+        catch (HttpRequestException) { pendingConfirmation = null; errorMessage = "Die Cleanifico API ist nicht erreichbar."; }
+        finally { isSaving = false; }
+    }
+
+    private async Task ActivateAsync(EmployeeResponse employee)
+    {
+        try { await ApiClient.ActivateAsync(employee.Id); feedbackMessage = "Der Mitarbeiter wurde reaktiviert."; await LoadAsync(); }
+        catch (ApiClientException exception) { errorMessage = exception.Message; }
+        catch (HttpRequestException) { errorMessage = "Die Cleanifico API ist nicht erreichbar."; }
+    }
+
+    private static UpdateEmployeeRequest ToForm(EmployeeResponse value) => new()
+    {
+        EmployeeNumber = value.EmployeeNumber, FirstName = value.FirstName, LastName = value.LastName,
+        Street = value.Street, PostalCode = value.PostalCode, City = value.City, Country = value.Country,
+        Email = value.Email, Phone = value.Phone, MobilePhone = value.MobilePhone, DateOfBirth = value.DateOfBirth,
+        EmploymentStartDate = value.EmploymentStartDate, EmploymentEndDate = value.EmploymentEndDate,
+        EmploymentType = value.EmploymentType, WeeklyHours = value.WeeklyHours,
+        MonthlyTargetHours = value.MonthlyTargetHours, Notes = value.Notes
+    };
+
+    private static CreateEmployeeRequest ToCreate(EmployeeRequestBase value) => new()
+    {
+        EmployeeNumber = value.EmployeeNumber, FirstName = value.FirstName, LastName = value.LastName,
+        Street = value.Street, PostalCode = value.PostalCode, City = value.City, Country = value.Country,
+        Email = value.Email, Phone = value.Phone, MobilePhone = value.MobilePhone, DateOfBirth = value.DateOfBirth,
+        EmploymentStartDate = value.EmploymentStartDate, EmploymentEndDate = value.EmploymentEndDate,
+        EmploymentType = value.EmploymentType, WeeklyHours = value.WeeklyHours,
+        MonthlyTargetHours = value.MonthlyTargetHours, Notes = value.Notes
+    };
+
+    private static string EmployeeName(EmployeeResponse value) => $"{value.FirstName} {value.LastName}";
+    private static string PreferredPhone(EmployeeResponse value) => FormatOrDash(value.MobilePhone ?? value.Phone);
+    private static string PostalCity(EmployeeResponse value) { string text = $"{value.PostalCode} {value.City}".Trim(); return FormatOrDash(text); }
+    private static string FormatOrDash(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    private static string FormatDate(DateOnly? value) => value?.ToString("dd.MM.yyyy") ?? "—";
+    private static string FormatHours(decimal value) => $"{value:0.##} Std.";
+    private sealed record PendingConfirmation(EmployeeResponse Employee, bool Delete, string Title, string Message);
+}

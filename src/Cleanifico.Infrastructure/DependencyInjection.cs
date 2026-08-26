@@ -1,6 +1,7 @@
 using Cleanifico.Application.CleaningObjects;
 using Cleanifico.Application.CleaningTypes;
 using Cleanifico.Application.Customers;
+using Cleanifico.Application.Employees;
 using Cleanifico.Application.Licensing;
 using Cleanifico.Application.Security;
 using Cleanifico.Application.TimeTypes;
@@ -45,6 +46,7 @@ public static class DependencyInjection
         services.AddScoped<ICleaningTypeRepository, EfCleaningTypeRepository>();
         services.AddScoped<ICleaningObjectRepository, EfCleaningObjectRepository>();
         services.AddScoped<ICustomerRepository, EfCustomerRepository>();
+        services.AddScoped<IEmployeeRepository, EfEmployeeRepository>();
         services.AddScoped<ITimeTypeRepository, EfTimeTypeRepository>();
         services.AddOptions<LicensingOptions>()
             .Bind(configuration.GetSection(LicensingOptions.SectionName))

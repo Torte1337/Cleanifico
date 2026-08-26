@@ -14,8 +14,8 @@ Die Solution verwendet das moderne Format `Cleanifico.slnx`. Alle Projekte ziele
 
 | Projekt | Verantwortung | Aktueller Inhalt |
 | --- | --- | --- |
-| `Cleanifico.Domain` | Entities, Value Objects, Enums, Domain-Regeln und Domain Exceptions | `CleaningType`, `TimeType` und `Customer` mit UTC-Lifecycle |
-| `Cleanifico.Application` | Use Cases, Interfaces, Validierung und Orchestrierung | Reinigungstyp-, Zeittyp-, Kunden- und Benutzerverwaltungs-Ports |
+| `Cleanifico.Domain` | Entities, Value Objects, Enums, Domain-Regeln und Domain Exceptions | `CleaningType`, `TimeType`, `Customer`, `CleaningObject` und `Employee` mit UTC-Lifecycle |
+| `Cleanifico.Application` | Use Cases, Interfaces, Validierung und Orchestrierung | Reinigungstyp-, Zeittyp-, Kunden-, Objekt-, Mitarbeiter- und Benutzerverwaltungs-Ports |
 | `Cleanifico.Contracts` | DTOs, Requests, Responses und öffentliche Verträge | Cleaning-Type-, Identity- und Benutzerverträge sowie Security-Konstanten |
 | `Cleanifico.Infrastructure` | EF Core, MySQL, Identity, Repositories und technische Adapter | `CleanificoDbContext`, Identity-Services, Fluent Mapping und Migrationen |
 | `Cleanifico.Api` | ASP.NET Core API und serverseitiger Composition Root | Identity-Cookie, Policies, Problem Details, Health-, Cleaning-Type- und Benutzer-Endpunkte |
@@ -74,7 +74,7 @@ Jeder Tenant erhält eine eigene API-/Instanz, Konfiguration, Lizenz und MySQL-D
 
 Der Laufzeit-Connection-String kommt aus `ConnectionStrings:Cleanifico`; echte Zugangsdaten liegen nicht im Repository. Die API schlägt beim Start mit einer neutralen Konfigurationsmeldung fehl, wenn der Wert fehlt. Die Design-Time-Factory verwendet für reine Modellerzeugung eine nicht funktionsfähige Platzhalterverbindung.
 
-Schemaänderungen liegen versioniert unter `Persistence/Migrations`. Auf `InitialCleanificoPersistence`, `AddTenantIdentity`, `AddConfigurableTimeTypes` und `AddCustomers` folgt `AddCleaningObjects`. Der Host führt weder `EnsureCreated` noch `Database.Migrate` beim Start aus. Lokale und spätere produktive Tenant-Migrationen werden explizit und kontrolliert ausgeführt.
+Schemaänderungen liegen versioniert unter `Persistence/Migrations`. Auf `InitialCleanificoPersistence`, `AddTenantIdentity`, `AddConfigurableTimeTypes`, `AddCustomers` und `AddCleaningObjects` folgt `AddEmployees`. Der Host führt weder `EnsureCreated` noch `Database.Migrate` beim Start aus. Lokale und spätere produktive Tenant-Migrationen werden explizit und kontrolliert ausgeführt.
 
 Die Persistenzabstraktion gehört in Application, die EF-Implementierung in Infrastructure:
 
@@ -100,9 +100,17 @@ MySQL-Fehler für eindeutige Indizes und spätere Fremdschlüssel werden in vers
 
 ## API und Web-App
 
-`Cleanifico.Api` ist der serverseitige Composition Root. Sie registriert Problem Details, zentrale Exception-Behandlung, Health Checks, Application Services und die Infrastructure-Adapter. Neben `GET /health` stellt sie Stammdaten-Routen unter `/api/cleaning-types`, `/api/time-types`, `/api/customers` und `/api/objects` bereit. Domainvalidierung führt zu `400`, fehlende Datensätze zu `404` und Eindeutigkeits-/Löschkonflikte zu `409`; unerwartete Fehler werden geloggt, aber ohne interne Details ausgeliefert.
+`Cleanifico.Api` ist der serverseitige Composition Root. Sie registriert Problem Details, zentrale Exception-Behandlung, Health Checks, Application Services und die Infrastructure-Adapter. Neben `GET /health` stellt sie Stammdaten-Routen unter `/api/cleaning-types`, `/api/time-types`, `/api/customers`, `/api/objects` und `/api/employees` bereit. Domainvalidierung führt zu `400`, fehlende Datensätze zu `404` und Eindeutigkeits-/Löschkonflikte zu `409`; unerwartete Fehler werden geloggt, aber ohne interne Details ausgeliefert.
 
-`Cleanifico.Web` ist eine eigenständige Blazor-Web-App mit serverseitiger Interaktivität. Sie referenziert nur öffentliche Contracts und ruft die API über typisierte HTTP-Clients auf. Die Seiten `/reinigungstypen`, `/zeittypen`, `/kunden` und `/objekte` bieten Suche, Statusfilter, Listen, Dialoge zum Anlegen/Bearbeiten und klar getrennte Lifecycle-Aktionen. Die Objektseite filtert zusätzlich nach Kunde; die Kundendetailansicht zeigt Anzahl und Direktlinks der zugeordneten Objekte. Backendfehler werden als sichere deutsche Meldungen dargestellt; rohe Antworttexte oder Stacktraces werden nicht gezeigt.
+`Cleanifico.Web` ist eine eigenständige Blazor-Web-App mit serverseitiger Interaktivität. Sie referenziert nur öffentliche Contracts und ruft die API über typisierte HTTP-Clients auf. Die Seiten `/reinigungstypen`, `/zeittypen`, `/kunden`, `/objekte` und `/mitarbeiter` bieten Suche, Statusfilter, Listen, Dialoge zum Anlegen/Bearbeiten und klar getrennte Lifecycle-Aktionen. Die Objektseite filtert zusätzlich nach Kunde; die Kundendetailansicht zeigt Anzahl und Direktlinks der zugeordneten Objekte. Backendfehler werden als sichere deutsche Meldungen dargestellt; rohe Antworttexte oder Stacktraces werden nicht gezeigt.
+
+## Mitarbeiter und Benutzerkonten
+
+`Employee` ist die fachliche Personal-Entity des tenantlokalen Reinigungsunternehmens. Sie existiert unabhängig von `ApplicationUser`; weder ein Mitarbeiter ohne Login noch ein Benutzerkonto ohne Personalstammsatz ist technisch fehlerhaft. Eine optionale Verknüpfung wird erst mit konkreten App-Zugangsanforderungen ergänzt und nicht automatisch erzeugt.
+
+`EmployeeNumber` ist ein benutzerverwalteter, case-insensitive eindeutiger Geschäftsschlüssel. Beschäftigungsarten sind bewusst kein Enum, sondern ein optionaler frei pflegbarer Text, damit kundenspezifische Bezeichnungen ohne Schemaänderung möglich bleiben. Datumsregeln und nichtnegative Wochen-/Monatssollstunden liegen in der Domain; eine automatische Stundenberechnung existiert nicht. Deaktivierung setzt kein Austrittsdatum.
+
+Ohne fachliche Referenzen darf ein Employee physisch gelöscht werden. Sobald Verträge, Arbeitszeiten, Objektzuweisungen, Einsätze, Schlüssel oder historische Daten hinzukommen, müssen Restrict-Fremdschlüssel das Löschen verhindern; dann ist Deaktivierung der reguläre Lifecycle. Es werden keine künstlichen Referenzen auf diese späteren Module angelegt.
 
 ## Kunden und Objekte
 
@@ -122,7 +130,7 @@ Bis Zeitbuchungen existieren, darf ein Zeittyp physisch gelöscht werden. Späte
 
 ASP.NET Core Identity verwendet `ApplicationUser`, `IdentityRole<Guid>` und denselben `CleanificoDbContext` wie die tenantlokalen Fachdaten. Eine zusätzliche `TenantId` ist wegen der Instanz-/Datenbank-Isolation nicht nötig. `ApplicationUser` führt Vorname, Nachname, eindeutige E-Mail als Benutzername, Aktivstatus und UTC-Auditzeiten. Ein Konto ist kein fachlicher Mitarbeiterdatensatz.
 
-Die Rollen sind `Owner`, `Administrator`, `Dispatcher`, `ObjectManager` und `Employee`. Rollen und Policy-Namen liegen zentral in Contracts. Die API erzwingt zusätzlich zu den Rollen eine Active-User-Anforderung als Fallback-Policy. Cleaning-Type-Lesezugriffe erlauben die vier Office-Rollen, Schreibzugriffe nur Owner und Administrator. Benutzerverwaltung und Rollenvergabe sind ebenfalls Owner/Administrator vorbehalten. Der letzte aktive Owner ist gegen Deaktivierung und Rollenentzug geschützt.
+Die Rollen sind `Owner`, `Administrator`, `Dispatcher`, `ObjectManager` und `Employee`. Rollen und Policy-Namen liegen zentral in Contracts. Die API erzwingt zusätzlich zu den Rollen eine Active-User-Anforderung als Fallback-Policy. Fachliche Lesezugriffe einschließlich `ViewEmployees` erlauben die vier Office-Rollen, Schreibzugriffe einschließlich `ManageEmployees` nur Owner und Administrator. Benutzerverwaltung und Rollenvergabe sind ebenfalls Owner/Administrator vorbehalten. Der letzte aktive Owner ist gegen Deaktivierung und Rollenentzug geschützt.
 
 API und Web sind getrennte Hosts und teilen den ASP.NET-Identity-Anwendungscookie über denselben Scheme-/Cookie-Namen, Application Name und persistenten Data-Protection-Schlüsselbund. Der Cookie ist `HttpOnly`, `Secure`, `SameSite=Lax`, acht Stunden gültig und gleitend erneuert. Die Web-BFF-Endpunkte vermitteln Login und Logout; typisierte Server-Clients reichen eine kurzlebig geschützte Sitzung an die API weiter. Die API validiert den Security Stamp bei jeder Anfrage, die Web-App prüft die Sitzung fail-closed gegen `/api/auth/session`. Anonyme API-Aufrufe liefern `401`, fehlende Rollen `403`.
 
@@ -136,7 +144,7 @@ Cleanifico übernimmt dieses Muster mit Produktcode `CLEANIFICO`, Feature `base`
 
 Das analysierte FergensHub-Repository besitzt weiterhin nur die interne Zuordnung `Tenant → TenantProduct → TenantProductFeature` und implementiert weder die von AssetFico bereits konsumierten Runtime-Routen noch Lizenzschlüssel, Installationen, Refresh-Credentials oder Lease-Signierung. Für den produktiven Cleanifico-Betrieb muss FergensHub daher die bestehenden AssetFico-Verträge implementieren, `CLEANIFICO` samt `base` verwalten und installationsgebundene Leases mit dem bestehenden Signing-Key ausstellen. Cleanifico erfindet keinen abweichenden Endpoint und enthält keinen Konfigurations-Bypass.
 
-API-Business-Policies für CleaningTypes, TimeTypes, Customers und CleaningObjects enthalten zusätzlich `LicensedProductRequirement`. Anonyme Aufrufe bleiben `401`; bei gültiger Lizenz und fehlender Rolle bleibt `403`. Ungültige oder nicht prüfbare Lizenzen liefern ein kontrolliertes `403 ProblemDetails` ohne interne URL oder Exception. `/api/license/status` ist für aktive Benutzer lizenzunabhängig erreichbar. `/health`, Login, Logout, Sessionprüfung und Benutzeradministration werden nicht durch die Geschäftslizenz blockiert.
+API-Business-Policies für CleaningTypes, TimeTypes, Customers, CleaningObjects und Employees enthalten zusätzlich `LicensedProductRequirement`. Anonyme Aufrufe bleiben `401`; bei gültiger Lizenz und fehlender Rolle bleibt `403`. Ungültige oder nicht prüfbare Lizenzen liefern ein kontrolliertes `403 ProblemDetails` ohne interne URL oder Exception. `/api/license/status` ist für aktive Benutzer lizenzunabhängig erreichbar. `/health`, Login, Logout, Sessionprüfung und Benutzeradministration werden nicht durch die Geschäftslizenz blockiert.
 
 Cleanifico Office spiegelt dieselbe zusätzliche Policy-Anforderung für `/reinigungstypen`, `/zeittypen`, `/kunden` und `/objekte`. Der Status wird über die authentifizierte Cleanifico API bezogen und pro Server-Circuit eine Minute gecacht. `/lizenz` zeigt Lease- und Installationsstatus; Owner/Administrator dürfen dort aktivieren und manuell erneuern. Rollenprüfungen bleiben vollständig bestehen.
 

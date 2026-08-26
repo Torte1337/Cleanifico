@@ -56,6 +56,9 @@ public static class OfficeWebApplication
         builder.Services.AddHttpClient<ICustomersApiClient, CustomersApiClient>(client =>
                 client.BaseAddress = cleanificoApiUri)
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false });
+        builder.Services.AddHttpClient<IEmployeesApiClient, EmployeesApiClient>(client =>
+                client.BaseAddress = cleanificoApiUri)
+            .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false });
         builder.Services.AddHttpClient<ICleaningObjectsApiClient, CleaningObjectsApiClient>(client =>
                 client.BaseAddress = cleanificoApiUri)
             .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { UseCookies = false });
@@ -139,6 +142,10 @@ public static class OfficeWebApplication
             .AddPolicy(SecurityPolicies.ViewObjects, policy =>
                 policy.RequireRole([.. SecurityRoles.Office]).AddRequirements(new OfficeLicenseRequirement()))
             .AddPolicy(SecurityPolicies.ManageObjects, policy =>
+                policy.RequireRole([.. SecurityRoles.Administrators]).AddRequirements(new OfficeLicenseRequirement()))
+            .AddPolicy(SecurityPolicies.ViewEmployees, policy =>
+                policy.RequireRole([.. SecurityRoles.Office]).AddRequirements(new OfficeLicenseRequirement()))
+            .AddPolicy(SecurityPolicies.ManageEmployees, policy =>
                 policy.RequireRole([.. SecurityRoles.Administrators]).AddRequirements(new OfficeLicenseRequirement()))
             .AddPolicy(SecurityPolicies.ViewTimeTypes, policy =>
                 policy.RequireRole([.. SecurityRoles.Office]).AddRequirements(new OfficeLicenseRequirement()))
