@@ -46,7 +46,33 @@ public static class DependencyInjection
         services.AddScoped<ICleaningObjectRepository, EfCleaningObjectRepository>();
         services.AddScoped<ICustomerRepository, EfCustomerRepository>();
         services.AddScoped<ITimeTypeRepository, EfTimeTypeRepository>();
-        services.AddScoped<ILicenseService, UnavailableFergensHubLicenseService>();
+        services.AddOptions<LicensingOptions>()
+            .Bind(configuration.GetSection(LicensingOptions.SectionName))
+            .Validate(
+                options => options.RequestTimeout > TimeSpan.Zero
+                    && options.RequestTimeout <= TimeSpan.FromMinutes(5),
+                "Licensing:RequestTimeout muss größer null und höchstens fünf Minuten sein.")
+            .Validate(
+                options => options.RefreshInterval >= LicensingOptions.MinimumRefreshInterval
+                    && options.RefreshInterval <= LicensingOptions.MaximumRefreshInterval,
+                "Licensing:RefreshInterval muss zwischen einer Stunde und 30 Tagen liegen.")
+            .ValidateOnStart();
+        services.AddSingleton(TimeProvider.System);
+        services.AddSingleton<ILocalLicenseStore, FileLocalLicenseStore>();
+        services.AddHttpClient(FergensHubLicensingClient.HttpClientName, (provider, client) =>
+        {
+            var options = provider.GetRequiredService<Microsoft.Extensions.Options.IOptions<LicensingOptions>>();
+            client.Timeout = options.Value.RequestTimeout;
+        });
+        services.AddSingleton<FergensHubLicensingClient>();
+        services.AddSingleton<LocalLeaseLicenseService>();
+        services.AddSingleton<ILicenseService>(provider =>
+            provider.GetRequiredService<LocalLeaseLicenseService>());
+        services.AddSingleton<ILicenseActivationService>(provider =>
+            provider.GetRequiredService<LocalLeaseLicenseService>());
+        services.AddSingleton<ILicenseRefreshService>(provider =>
+            provider.GetRequiredService<LocalLeaseLicenseService>());
+        services.AddHostedService<LicenseRefreshBackgroundService>();
 
         services.AddIdentity<ApplicationUser, IdentityRole<Guid>>(IdentitySecurityDefaults.Configure)
             .AddEntityFrameworkStores<CleanificoDbContext>()

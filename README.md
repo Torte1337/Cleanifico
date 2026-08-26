@@ -13,10 +13,10 @@ Cleanifico ist eine mandantenfähige Betriebssoftware für Gebäudereinigungsunt
 - Kundenverwaltung für Auftraggeber mit Ansprechpartner, Verwaltungsadresse, Detailansicht und Lifecycle
 - Objektverwaltung mit verpflichtendem Kundenbezug, eigener Objektadresse, direktem Kontakt und Lifecycle
 - separate ASP.NET Core API mit geschützten Stammdaten- und Benutzer-Endpunkten; nur `GET /health` und Login sind anonym erreichbar
-- zusätzliche fail-closed FergensHub-Lizenzgrenze für alle vorhandenen fachlichen API- und Office-Bereiche
+- AssetFico-kompatible, installationsgebundene und signierte Offline-Lease mit zentraler fail-closed Lizenzgrenze für alle fachlichen API- und Office-Bereiche
 - separate Blazor-Web-App für Cleanifico Office mit Login, `/kunden`, `/objekte`, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer`
 - fünf xUnit-Testprojekte mit Domain-, Application-, Identity-, EF-, Architektur-, API- und Web-Integrationstests
-- noch keine Lizenzprüfung, Discovery-, Mobile- oder sonstigen externen Integrationen
+- noch keine Discovery-, Mobile- oder weiteren Businessmodule
 
 ## Projektstruktur
 
@@ -56,6 +56,18 @@ dotnet run --project src/Cleanifico.Web
 ```
 
 Die Development-Konfiguration der Web-App erwartet die API unter `https://localhost:7182`; die Web-App selbst startet standardmäßig unter `https://localhost:7282`.
+
+## Lizenzkonfiguration
+
+Die API verwendet das AssetFico-Muster aus lokaler signierter Lease, persistenter Installation-ID und periodischem FergensHub-Refresh. Lokal liegt der State standardmäßig unter `src/Cleanifico.Api/config/license-state.json`, produktiv unter `/app/config/license-state.json`; er enthält ein geheimes Refresh-Credential und muss persistent, nur für den Dienstbenutzer lesbar und im Backup enthalten sein. Eine Freischaltung über Konfigurationswerte existiert nicht.
+
+Die FergensHub-Basis-URL wird ausschließlich extern konfiguriert:
+
+```bash
+dotnet user-secrets set --project src/Cleanifico.Api "Licensing:BaseUrl" "https://<fergenshub-host>/"
+```
+
+Owner und Administrator aktivieren beziehungsweise erneuern die Installation unter `/lizenz`. Der analysierte FergensHub-Stand stellt die bereits von AssetFico definierten Aktivierungs-/Refresh-Routen derzeit noch nicht serverseitig bereit; bis zu dieser externen Ergänzung bleibt eine neue Cleanifico-Installation `NotActivated`.
 
 ## Tenantlokale Anmeldung
 

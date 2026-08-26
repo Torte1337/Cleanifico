@@ -8,9 +8,10 @@ public static class LicenseAuthorizationContext
 
     public static string UserMessage(LicenseStatus status) => status switch
     {
-        LicenseStatus.Inactive => "Die Cleanifico-Lizenz ist nicht aktiv.",
-        LicenseStatus.NotFound => "Für diese Cleanifico-Instanz wurde keine Lizenz gefunden.",
-        LicenseStatus.Unavailable => "Die Lizenzprüfung ist derzeit nicht möglich.",
-        _ => "Die Cleanifico-Lizenz ist aktiv."
+        LicenseStatus.NotActivated => "Diese Cleanifico-Installation wurde noch nicht aktiviert.",
+        LicenseStatus.Grace => "Die Cleanifico-Lizenz befindet sich im Offline-Toleranzzeitraum.",
+        LicenseStatus.Expired => "Die Cleanifico-Lizenz ist abgelaufen.",
+        LicenseStatus.Invalid => "Der lokale Cleanifico-Lizenzzustand ist ungültig.",
+        _ => "Die Cleanifico-Lizenz ist gültig."
     };
 }

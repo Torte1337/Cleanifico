@@ -64,7 +64,7 @@ FergensHub / Discovery
           +-- Tenant B: Cleanifico API + MySQL B
 ```
 
-Jeder Tenant erhält eine eigene Tenant-ID, API-/Instanz, Konfiguration, Lizenz und MySQL-Datenbank. Eine zentrale gemeinsame Cleanifico-Fachdatenbank ist ausgeschlossen. Da die Datenbank selbst die Isolationsgrenze bildet, tragen Business-Entities wie `CleaningType` derzeit keine zusätzliche `TenantId`. Die konkrete Deployment- und Secret-Verteilungsstrategie wird festgelegt, sobald wiederverwendbare FergensHub-/Assetfico-Patterns verfügbar und geprüft sind.
+Jeder Tenant erhält eine eigene API-/Instanz, Konfiguration, Lizenz und MySQL-Datenbank. Eine zentrale gemeinsame Cleanifico-Fachdatenbank ist ausgeschlossen. Da die Datenbank selbst die Isolationsgrenze bildet, tragen Business-Entities wie `CleaningType` derzeit keine zusätzliche `TenantId`. Lizenzseitig identifiziert eine persistente Installation-ID genau diese Instanz; die Zuordnung zum FergensHub-Kunden erfolgt bei Aktivierung über den Lizenzschlüssel.
 
 ## Datenbank und Persistenz
 
@@ -130,23 +130,25 @@ Passwörter erfordern mindestens zwölf Zeichen sowie Groß-/Kleinbuchstaben, Za
 
 ## FergensHub-Lizenzierung
 
-FergensHub bleibt die zentrale Quelle für Tenant-, Produkt- und Featurezuordnungen. Die geprüfte Referenz modelliert `Tenant → TenantProduct → TenantProductFeature`; ein Produkt ist effektiv aktiv, wenn Tenant, Product und TenantProduct aktiv sind. Ein Feature ist zusätzlich nur effektiv, wenn ProductFeature aktiv und TenantProductFeature aktiviert ist. Das vorhandene FergensHub-Projekt stellt diese Konfiguration bisher ausschließlich intern bereit: eine öffentliche/eigenständige Lizenzabfrage, externe DTOs, Client-Authentifizierung, Laufzeit-/Ablaufdaten, Tarife oder Limits existieren nicht. Im bereitgestellten Projektstamm waren weder Assetfico noch eine Discovery-Implementierung vorhanden.
+AssetFico identifiziert jede isolierte Kundeninstallation durch eine zufällig erzeugte, dauerhaft im lokalen License State gespeicherte Installation-ID. Ein `flk1_`-Lizenzschlüssel aktiviert die Installation über `POST api/licensing/v1/activate`; FergensHub antwortet mit einem geheimen `flr1_`-Refresh-Credential und einer signierten Lease. Erneuerungen verwenden `POST api/licensing/v1/refresh`. Der JSON-State wird atomar, ohne Symlinks und unter Unix nur mit Benutzer-Lese-/Schreibrechten gespeichert. Die Lease ist an Installation-ID und Produktcode gebunden, trägt kanonische Featurecodes und wird mit `ECDSA-P256-SHA256` gegen einen eingebetteten öffentlichen Trust Anchor verifiziert. Sie gilt 30 Tage regulär und anschließend 14 Tage in Grace. Numerical Limits sind im AssetFico-Lease-Vertrag nicht vorhanden.
 
-Cleanifico besitzt deshalb eine interne `ILicenseService`-Grenze mit den aus dem realen Modell ableitbaren Zuständen `Active`, `Inactive`, `NotFound` und dem technischen Zustand `Unavailable`. `Expired` wird nicht vorweggenommen, weil FergensHub derzeit keine Laufzeit modelliert. Der produktive Platzhalteradapter erfindet keinen HTTP-Endpunkt und liefert fail-closed `Unavailable`. Es gibt keine lokale Lizenzdatenbank, keine konfigurationsbasierte Freischaltung und keinen Secret-/URL-Platzhalter, der eine nicht vorhandene Integration vortäuscht. Sobald FergensHub einen authentifizierten externen Query-Contract veröffentlicht, ersetzt ein Infrastructure-Adapter den Platzhalter; Tenant-/Produktidentifikation, Endpoint, Credentials, Cache- oder Grace-Period werden dann ausschließlich aus Settings, Environment Variables oder User Secrets bezogen und nach dem realen Contract validiert.
+Cleanifico übernimmt dieses Muster mit Produktcode `CLEANIFICO`, Feature `base`, denselben Credentialformaten, Routen, Lease-Schema-, Signatur- und Zeitregeln. `ILicenseService` bleibt die einzige Policy-Grenze und liefert `NotActivated`, `Valid`, `Grace`, `Expired` oder `Invalid`. Der API-Host erneuert die Lease beim Start und danach standardmäßig alle 24 Stunden. Ein temporärer FergensHub-Ausfall lässt eine bereits verifizierte Lease bis zum Ende von Grace weiterarbeiten; fachliche Ablehnung wie Widerruf oder Sperrung blockiert sofort. State-Pfad, FergensHub-Basis-URL, Timeouts und Intervall kommen aus `Licensing`-Konfiguration beziehungsweise Environment Variables/Secrets. Lizenz- und Refresh-Credentials werden weder ausgegeben noch protokolliert.
+
+Das analysierte FergensHub-Repository besitzt weiterhin nur die interne Zuordnung `Tenant → TenantProduct → TenantProductFeature` und implementiert weder die von AssetFico bereits konsumierten Runtime-Routen noch Lizenzschlüssel, Installationen, Refresh-Credentials oder Lease-Signierung. Für den produktiven Cleanifico-Betrieb muss FergensHub daher die bestehenden AssetFico-Verträge implementieren, `CLEANIFICO` samt `base` verwalten und installationsgebundene Leases mit dem bestehenden Signing-Key ausstellen. Cleanifico erfindet keinen abweichenden Endpoint und enthält keinen Konfigurations-Bypass.
 
 API-Business-Policies für CleaningTypes, TimeTypes, Customers und CleaningObjects enthalten zusätzlich `LicensedProductRequirement`. Anonyme Aufrufe bleiben `401`; bei gültiger Lizenz und fehlender Rolle bleibt `403`. Ungültige oder nicht prüfbare Lizenzen liefern ein kontrolliertes `403 ProblemDetails` ohne interne URL oder Exception. `/api/license/status` ist für aktive Benutzer lizenzunabhängig erreichbar. `/health`, Login, Logout, Sessionprüfung und Benutzeradministration werden nicht durch die Geschäftslizenz blockiert.
 
-Cleanifico Office spiegelt dieselbe zusätzliche Policy-Anforderung für `/reinigungstypen`, `/zeittypen`, `/kunden` und `/objekte`. Der Status wird über die authentifizierte Cleanifico API bezogen und pro Server-Circuit eine Minute gecacht; `/lizenz` zeigt kontrollierte deutsche Zustände und erlaubt eine erzwungene erneute Prüfung. Rollenprüfungen bleiben vollständig bestehen.
+Cleanifico Office spiegelt dieselbe zusätzliche Policy-Anforderung für `/reinigungstypen`, `/zeittypen`, `/kunden` und `/objekte`. Der Status wird über die authentifizierte Cleanifico API bezogen und pro Server-Circuit eine Minute gecacht. `/lizenz` zeigt Lease- und Installationsstatus; Owner/Administrator dürfen dort aktivieren und manuell erneuern. Rollenprüfungen bleiben vollständig bestehen.
 
 ## Discovery
 
-Die geplante Discovery API soll später `Firmencode + Produkt` in Tenant-ID, Firmenname, API-Basis-URL und API-Version auflösen. Dies ist insbesondere für `Cleanifico.Mobile` vorgesehen. Im geprüften Projektstamm existiert kein Discovery-Projekt oder wiederverwendbarer Contract; Prompt 007 führt deshalb keine Discovery- oder Tenant-Auswahl-Scheinintegration ein.
+Die geplante Discovery API soll später `Firmencode + Produkt` in Tenant-ID, Firmenname, API-Basis-URL und API-Version auflösen. Dies ist insbesondere für `Cleanifico.Mobile` vorgesehen. AssetFico verwendet Discovery nicht für die Lizenzprüfung; deshalb bleibt Discovery von der hier übernommenen installationsgebundenen Lease getrennt.
 
 ## Mobile, Storage und Hintergrunddienste
 
 - `Cleanifico.Mobile`: späteres .NET-MAUI-Projekt; Offline-Synchronisierung und SQLite gehören nicht zu Prompt 001.
 - Storage: noch kein Anbieter oder Vertrag festgelegt; Dokumente und Fotos werden erst mit dem jeweiligen Fachmodul geplant.
-- Hintergrunddienste: derzeit keine. Jobs werden nur für konkrete Anwendungsfälle ergänzt.
+- Hintergrunddienste: der API-Host erneuert die lokale Lizenz-Lease periodisch; weitere Jobs werden nur für konkrete Anwendungsfälle ergänzt.
 
 ## Tests
 
@@ -160,7 +162,7 @@ xUnit prüft derzeit:
 - Identity-Benutzer, Passwort-Hashing, Login, Inaktivität, Lockout, Rollen, Owner-Schutz und sicheren Bootstrap,
 - Cleaning-Type-, TimeType-, Customer- und CleaningObject-HTTP-Operationen sowie rollenabhängige `401`-/`403`-Fälle über einen lokalen Kestrel-Host,
 - Login- und Routenschutz der eigenständigen Web-App,
-- gültige, inaktive, fehlende und nicht prüfbare Lizenzzustände, die Kombination mit `401`/`403`, den lizenzunabhängigen Healthcheck und die Office-Lizenzanzeige,
+- gültige, Grace-, nicht aktivierte, abgelaufene und ungültige Lizenzzustände, Lease-Signatur und Installationsbindung, die Kombination mit `401`/`403`, den lizenzunabhängigen Healthcheck und die Office-Lizenzanzeige,
 - die Abhängigkeitsfreiheit der Domain,
 - die exakten Projekt-Referenzen von Application, Infrastructure, API und Web,
 - die Vollständigkeit der elf Solution-Projekte,

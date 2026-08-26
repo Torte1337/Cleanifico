@@ -16,4 +16,5 @@ public static class SecurityPolicies
     public const string ManageUsers = "ManageUsers";
     public const string ManageRoles = "ManageRoles";
     public const string AdministrationAccess = "AdministrationAccess";
+    public const string ManageLicense = "ManageLicense";
 }

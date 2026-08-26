@@ -27,6 +27,33 @@
             <span>@status.Message</span>
         </div>
 
+        <dl>
+            <dt>Installations-ID</dt>
+            <dd>@status.InstallationId</dd>
+            @if (!string.IsNullOrWhiteSpace(status.LicenseDisplayIdentifier))
+            {
+                <dt>Lizenz</dt>
+                <dd>@status.LicenseDisplayIdentifier</dd>
+            }
+            @if (status.ValidUntilUtc is not null)
+            {
+                <dt>Regulär gültig bis</dt>
+                <dd>@status.ValidUntilUtc.Value.ToLocalTime().ToString("g")</dd>
+            }
+            @if (status.GraceUntilUtc is not null)
+            {
+                <dt>Toleranzzeitraum bis</dt>
+                <dd>@status.GraceUntilUtc.Value.ToLocalTime().ToString("g")</dd>
+            }
+        </dl>
+
+        @if (operation is not null)
+        {
+            <div class="message @(operation.Succeeded ? "message-success" : "message-error")" role="status">
+                <span>@operation.Message</span>
+            </div>
+        }
+
         <div class="row-actions">
             @if (status.IsValid)
             {
@@ -37,12 +64,38 @@
                 <button class="button button-primary" type="button" @onclick="RefreshAsync">Erneut prüfen</button>
             }
         </div>
+
+        <AuthorizeView Roles="Owner,Administrator">
+            <Authorized>
+                @if (status.Status == LicenseStatusCodes.NotActivated)
+                {
+                    <div class="form-grid">
+                        <label>
+                            <span>Lizenzschlüssel</span>
+                            <input type="password" autocomplete="off" maxlength="48" @bind="licenseKey" />
+                        </label>
+                        <button class="button button-primary" type="button" disabled="@operationRunning" @onclick="ActivateAsync">
+                            Lizenz aktivieren
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <button class="button button-secondary" type="button" disabled="@operationRunning" @onclick="RefreshLeaseAsync">
+                        Lease jetzt erneuern
+                    </button>
+                }
+            </Authorized>
+        </AuthorizeView>
     }
 </section>
 
 @code {
     private LicenseStatusResponse? status;
     private bool loading = true;
+    private bool operationRunning;
+    private string licenseKey = string.Empty;
+    private LicenseOperationResponse? operation;
 
     protected override async Task OnInitializedAsync()
     {
@@ -57,11 +110,30 @@
         loading = false;
     }
 
+    private async Task ActivateAsync()
+    {
+        operationRunning = true;
+        string candidate = licenseKey;
+        licenseKey = string.Empty;
+        operation = await LicenseService.ActivateAsync(candidate);
+        status = await LicenseService.GetStatusAsync(forceRefresh: true);
+        operationRunning = false;
+    }
+
+    private async Task RefreshLeaseAsync()
+    {
+        operationRunning = true;
+        operation = await LicenseService.RefreshAsync();
+        status = await LicenseService.GetStatusAsync(forceRefresh: true);
+        operationRunning = false;
+    }
+
     private static string Title(string value) => value switch
     {
-        LicenseStatusCodes.Active => "Lizenz aktiv",
-        LicenseStatusCodes.Inactive => "Lizenz nicht aktiv",
-        LicenseStatusCodes.NotFound => "Lizenz nicht gefunden",
-        _ => "Lizenzprüfung nicht möglich"
+        LicenseStatusCodes.Valid => "Lizenz gültig",
+        LicenseStatusCodes.Grace => "Lizenz im Toleranzzeitraum",
+        LicenseStatusCodes.NotActivated => "Installation nicht aktiviert",
+        LicenseStatusCodes.Expired => "Lizenz abgelaufen",
+        _ => "Lizenzzustand ungültig"
     };
 }

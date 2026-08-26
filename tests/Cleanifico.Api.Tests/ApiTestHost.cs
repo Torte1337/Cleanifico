@@ -55,40 +55,40 @@ internal sealed class ApiTestHost : IAsyncDisposable
     public FakeCustomerRepository CustomerRepository { get; }
 
     public static async Task<ApiTestHost> StartAsync(params CleaningType[] seed)
-        => await StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Active, seed, [], [], []);
+        => await StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Valid, seed, [], [], []);
 
     public static Task<ApiTestHost> StartAnonymousAsync(params CleaningType[] seed) =>
-        StartCoreAsync(null, true, LicenseStatus.Active, seed, [], [], []);
+        StartCoreAsync(null, true, LicenseStatus.Valid, seed, [], [], []);
 
     public static Task<ApiTestHost> StartAsRoleAsync(string role, params CleaningType[] seed) =>
-        StartCoreAsync(role, false, LicenseStatus.Active, seed, [], [], []);
+        StartCoreAsync(role, false, LicenseStatus.Valid, seed, [], [], []);
 
     public static Task<ApiTestHost> StartWithTimeTypesAsync(params TimeType[] seed) =>
-        StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Active, [], seed, [], []);
+        StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Valid, [], seed, [], []);
 
     public static Task<ApiTestHost> StartAnonymousWithTimeTypesAsync(params TimeType[] seed) =>
-        StartCoreAsync(null, true, LicenseStatus.Active, [], seed, [], []);
+        StartCoreAsync(null, true, LicenseStatus.Valid, [], seed, [], []);
 
     public static Task<ApiTestHost> StartAsRoleWithTimeTypesAsync(string role, params TimeType[] seed) =>
-        StartCoreAsync(role, false, LicenseStatus.Active, [], seed, [], []);
+        StartCoreAsync(role, false, LicenseStatus.Valid, [], seed, [], []);
 
     public static Task<ApiTestHost> StartWithCustomersAsync(params Customer[] seed) =>
-        StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Active, [], [], seed, []);
+        StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Valid, [], [], seed, []);
 
     public static Task<ApiTestHost> StartAnonymousWithCustomersAsync(params Customer[] seed) =>
-        StartCoreAsync(null, true, LicenseStatus.Active, [], [], seed, []);
+        StartCoreAsync(null, true, LicenseStatus.Valid, [], [], seed, []);
 
     public static Task<ApiTestHost> StartAsRoleWithCustomersAsync(string role, params Customer[] seed) =>
-        StartCoreAsync(role, false, LicenseStatus.Active, [], [], seed, []);
+        StartCoreAsync(role, false, LicenseStatus.Valid, [], [], seed, []);
 
     public static Task<ApiTestHost> StartWithObjectsAsync(Customer[] customers, params CleaningObject[] seed) =>
-        StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Active, [], [], customers, seed);
+        StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Valid, [], [], customers, seed);
 
     public static Task<ApiTestHost> StartAnonymousWithObjectsAsync() =>
-        StartCoreAsync(null, true, LicenseStatus.Active, [], [], [], []);
+        StartCoreAsync(null, true, LicenseStatus.Valid, [], [], [], []);
 
     public static Task<ApiTestHost> StartAsRoleWithObjectsAsync(string role, Customer[] customers, params CleaningObject[] seed) =>
-        StartCoreAsync(role, false, LicenseStatus.Active, [], [], customers, seed);
+        StartCoreAsync(role, false, LicenseStatus.Valid, [], [], customers, seed);
 
     public static Task<ApiTestHost> StartWithLicenseAsync(
         LicenseStatus licenseStatus,
@@ -128,6 +128,11 @@ internal sealed class ApiTestHost : IAsyncDisposable
                 services.AddSingleton<ITimeTypeRepository>(timeTypeRepository);
                 services.AddSingleton<IUserAdministrationService>(userService);
                 services.AddSingleton<ILicenseService>(new FakeLicenseService(licenseStatus));
+                services.AddSingleton<FakeLicenseOperationService>();
+                services.AddSingleton<ILicenseActivationService>(provider =>
+                    provider.GetRequiredService<FakeLicenseOperationService>());
+                services.AddSingleton<ILicenseRefreshService>(provider =>
+                    provider.GetRequiredService<FakeLicenseOperationService>());
                 services.AddSingleton(new TestIdentityOptions(role, anonymous));
                 services.AddAuthentication(options =>
                     {
@@ -175,6 +180,20 @@ internal sealed class FakeLicenseService(LicenseStatus status) : ILicenseService
 {
     public Task<LicenseCheckResult> CheckAsync(CancellationToken cancellationToken = default) =>
         Task.FromResult(new LicenseCheckResult(status));
+}
+
+internal sealed class FakeLicenseOperationService :
+    ILicenseActivationService,
+    ILicenseRefreshService
+{
+    public Task<LicenseOperationResult> ActivateAsync(
+        string licenseKey,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new LicenseOperationResult(LicenseOperationStatus.Success));
+
+    public Task<LicenseOperationResult> RefreshAsync(
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new LicenseOperationResult(LicenseOperationStatus.Success));
 }
 
 internal sealed record TestIdentityOptions(string? Role, bool Anonymous);

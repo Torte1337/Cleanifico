@@ -2,12 +2,12 @@
 
 ## Nächster sinnvoller Schritt
 
-- [ ] In FergensHub einen authentifizierten externen Effective-License-Query-Contract definieren und veröffentlichen; danach den fail-closed Cleanifico-Adapter durch den realen HTTP-Adapter ersetzen.
+- [ ] In FergensHub die bereits von AssetFico definierten Routen `POST api/licensing/v1/activate` und `POST api/licensing/v1/refresh` serverseitig implementieren, `CLEANIFICO` mit Feature `base` anlegen und installationsgebundene signierte Leases ausstellen.
 
 ## Offen
 
-- [ ] FergensHub-Contract für Tenant-/Produktidentifikation, Authentifizierung, Status-/Feature-DTOs, Fehlersemantik sowie Cache-/Grace-Period festlegen; Laufzeit, Tarife und Limits nur ergänzen, wenn das zentrale Modell sie tatsächlich führt.
-- [ ] Assetfico- und Discovery-Referenzimplementierungen bereitstellen, sobald sie verfügbar sind; Discovery bleibt bis dahin unimplementiert.
+- [ ] Produktive Lizenzkonfiguration (`Licensing__BaseUrl`, persistentes `Licensing__StatePath`) und gesichertes Backup des lokalen License State pro Tenant-Instanz in das Deployment aufnehmen.
+- [ ] In FergensHub Lizenzschlüssel, Installationslimit/-widerruf, Refresh-Credentials, 30-Tage-Leases, 14-Tage-Grace und ECDSA-Signierung entsprechend dem AssetFico-Vertrag persistieren und verwalten; numerische Limits nur nach Erweiterung des gemeinsamen Lease-Vertrags ergänzen.
 - [ ] Produktiven Data-Protection-Keyring für API und Web persistent, zugriffsgeschützt und at rest verschlüsselt betreiben.
 - [ ] Passwort-Reset, Einladung/Initialpasswort-Wechsel und MFA mit konkreten Produktanforderungen ergänzen; keine öffentliche Registrierung einführen.
 - [ ] Eine optionale fachliche Verknüpfung von Benutzerkonto und späterem Mitarbeiterdatensatz erst mit dem Personalmodul festlegen.
@@ -36,3 +36,4 @@
 - [x] Kundenverwaltung für Auftraggeber mit eindeutiger Kundennummer, Kontakt-/Adressdaten, Detailansicht, API, Autorisierung, Migration und Tests umgesetzt.
 - [x] Objektverwaltung mit verpflichtendem Customer-Bezug, eigener Objektadresse, CRUD/Lifecycle, API, Autorisierung, Migration, Kundendetail-Verknüpfung und Kunden-Löschschutz umgesetzt.
 - [x] FergensHub-Referenz gezielt analysiert und eine zusätzliche fail-closed Lizenzgrenze mit zentralen API-/Office-Policies, kontrollierter Statusanzeige und Tests umgesetzt; keine externe Scheinintegration erfunden.
+- [x] AssetFico-Lizenzierung gezielt analysiert und das installationsgebundene signierte Lease-Muster einschließlich lokalem State, Aktivierung/Refresh, Grace, Hintergrund-Erneuerung und zentraler Policy-Grenze auf Cleanifico übertragen.

@@ -175,9 +175,9 @@ public sealed class OfficeWebSecurityTests
     }
 
     [Theory]
-    [InlineData(LicenseStatusCodes.Inactive, "Lizenz nicht aktiv")]
-    [InlineData(LicenseStatusCodes.NotFound, "Lizenz nicht gefunden")]
-    [InlineData(LicenseStatusCodes.Unavailable, "Lizenzpr")]
+    [InlineData(LicenseStatusCodes.NotActivated, "Installation nicht aktiviert")]
+    [InlineData(LicenseStatusCodes.Expired, "Lizenz abgelaufen")]
+    [InlineData(LicenseStatusCodes.Invalid, "Lizenzzustand ung")]
     public async Task LicensePage_ShowsControlledStatus(string licenseStatus, string expectedText)
     {
         await using var host = await OfficeWebTestHost.StartAsync(
@@ -199,7 +199,7 @@ public sealed class OfficeWebSecurityTests
         await using var host = await OfficeWebTestHost.StartAsync(
             SecurityRoles.Owner,
             anonymous: false,
-            licenseStatus: LicenseStatusCodes.Inactive);
+            licenseStatus: LicenseStatusCodes.Expired);
 
         using var response = await host.Client.GetAsync("/kunden");
         var html = await response.Content.ReadAsStringAsync();
@@ -223,7 +223,7 @@ internal sealed class OfficeWebTestHost : IAsyncDisposable
     public static async Task<OfficeWebTestHost> StartAsync(
         string? role,
         bool anonymous,
-        string licenseStatus = LicenseStatusCodes.Active)
+        string licenseStatus = LicenseStatusCodes.Valid)
     {
         var application = OfficeWebApplication.Build(
             [
@@ -273,14 +273,31 @@ internal sealed class FakeOfficeLicenseService(string status) : IOfficeLicenseSe
         CancellationToken cancellationToken = default) =>
         Task.FromResult(new LicenseStatusResponse(
             status,
-            status == LicenseStatusCodes.Active,
+            status is LicenseStatusCodes.Valid or LicenseStatusCodes.Grace,
             status switch
             {
-                LicenseStatusCodes.Active => "Die Cleanifico-Lizenz ist aktiv.",
-                LicenseStatusCodes.Inactive => "Die Cleanifico-Lizenz ist nicht aktiv.",
-                LicenseStatusCodes.NotFound => "Für diese Cleanifico-Instanz wurde keine Lizenz gefunden.",
-                _ => "Die Lizenzprüfung ist derzeit nicht möglich."
-            }));
+                LicenseStatusCodes.Valid => "Die Cleanifico-Lizenz ist gültig.",
+                LicenseStatusCodes.Grace => "Die Cleanifico-Lizenz befindet sich im Offline-Toleranzzeitraum.",
+                LicenseStatusCodes.NotActivated => "Diese Cleanifico-Installation wurde noch nicht aktiviert.",
+                LicenseStatusCodes.Expired => "Die Cleanifico-Lizenz ist abgelaufen.",
+                _ => "Der lokale Cleanifico-Lizenzzustand ist ungültig."
+            },
+            Guid.Parse("11111111-1111-1111-1111-111111111111"),
+            null,
+            null,
+            null,
+            null,
+            [],
+            null));
+
+    public Task<LicenseOperationResponse> ActivateAsync(
+        string licenseKey,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new LicenseOperationResponse("Success", true, "Aktiviert."));
+
+    public Task<LicenseOperationResponse> RefreshAsync(
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(new LicenseOperationResponse("Success", true, "Aktualisiert."));
 }
 
 internal sealed record WebTestIdentity(string? Role, bool Anonymous);

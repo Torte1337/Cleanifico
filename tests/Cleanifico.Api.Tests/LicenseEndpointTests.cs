@@ -9,20 +9,49 @@ namespace Cleanifico.Api.Tests;
 
 public sealed class LicenseEndpointTests
 {
-    [Fact]
-    public async Task ActiveLicense_AllowsBusinessAccess()
+    [Theory]
+    [InlineData(LicenseStatus.Valid)]
+    [InlineData(LicenseStatus.Grace)]
+    public async Task OperationalLease_AllowsBusinessAccess(LicenseStatus status)
     {
-        await using var host = await ApiTestHost.StartWithLicenseAsync(LicenseStatus.Active);
+        await using var host = await ApiTestHost.StartWithLicenseAsync(status);
 
         using var response = await host.Client.GetAsync("/api/cleaning-types");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
 
+    [Fact]
+    public async Task LicenseActivation_RequiresAdministratorRole()
+    {
+        await using var host = await ApiTestHost.StartWithLicenseAsync(
+            LicenseStatus.NotActivated,
+            SecurityRoles.Dispatcher);
+
+        using var response = await host.Client.PostAsJsonAsync(
+            "/api/license/activate",
+            new ActivateLicenseRequest { LicenseKey = "flk1_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopq" });
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Owner_CanTriggerLicenseRefreshWithoutValidBusinessLicense()
+    {
+        await using var host = await ApiTestHost.StartWithLicenseAsync(LicenseStatus.NotActivated);
+
+        using var response = await host.Client.PostAsync("/api/license/refresh", null);
+        var result = await response.Content.ReadFromJsonAsync<LicenseOperationResponse>();
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.NotNull(result);
+        Assert.True(result.Succeeded);
+    }
+
     [Theory]
-    [InlineData(LicenseStatus.Inactive, "Inactive")]
-    [InlineData(LicenseStatus.NotFound, "NotFound")]
-    [InlineData(LicenseStatus.Unavailable, "Unavailable")]
+    [InlineData(LicenseStatus.NotActivated, "NotActivated")]
+    [InlineData(LicenseStatus.Expired, "Expired")]
+    [InlineData(LicenseStatus.Invalid, "Invalid")]
     public async Task InvalidLicense_BlocksBusinessAccessWithControlledProblem(
         LicenseStatus status,
         string expectedStatus)
@@ -47,7 +76,7 @@ public sealed class LicenseEndpointTests
     [InlineData("/api/objects")]
     public async Task UnavailableLicense_BlocksEveryExistingBusinessApi(string path)
     {
-        await using var host = await ApiTestHost.StartWithLicenseAsync(LicenseStatus.Unavailable);
+        await using var host = await ApiTestHost.StartWithLicenseAsync(LicenseStatus.Invalid);
 
         using var response = await host.Client.GetAsync(path);
 
@@ -58,7 +87,7 @@ public sealed class LicenseEndpointTests
     public async Task AnonymousBusinessAccess_RemainsUnauthorizedWhenLicenseIsInvalid()
     {
         await using var host = await ApiTestHost.StartWithLicenseAsync(
-            LicenseStatus.Inactive,
+            LicenseStatus.NotActivated,
             role: null,
             anonymous: true);
 
@@ -71,7 +100,7 @@ public sealed class LicenseEndpointTests
     public async Task MissingRole_RemainsForbiddenWhenLicenseIsActive()
     {
         await using var host = await ApiTestHost.StartWithLicenseAsync(
-            LicenseStatus.Active,
+            LicenseStatus.Valid,
             SecurityRoles.Employee);
 
         using var response = await host.Client.GetAsync("/api/objects");
@@ -82,21 +111,21 @@ public sealed class LicenseEndpointTests
     [Fact]
     public async Task UnavailableProvider_ReturnsControlledStatusForOffice()
     {
-        await using var host = await ApiTestHost.StartWithLicenseAsync(LicenseStatus.Unavailable);
+        await using var host = await ApiTestHost.StartWithLicenseAsync(LicenseStatus.Invalid);
 
         var result = await host.Client.GetFromJsonAsync<LicenseStatusResponse>("/api/license/status");
 
         Assert.NotNull(result);
-        Assert.Equal(LicenseStatusCodes.Unavailable, result.Status);
+        Assert.Equal(LicenseStatusCodes.Invalid, result.Status);
         Assert.False(result.IsValid);
-        Assert.Equal("Die Lizenzprüfung ist derzeit nicht möglich.", result.Message);
+        Assert.Equal("Der lokale Cleanifico-Lizenzzustand ist ungültig.", result.Message);
     }
 
     [Fact]
     public async Task Health_RemainsAvailableWhenLicenseCannotBeChecked()
     {
         await using var host = await ApiTestHost.StartWithLicenseAsync(
-            LicenseStatus.Unavailable,
+            LicenseStatus.Invalid,
             role: null,
             anonymous: true);
 

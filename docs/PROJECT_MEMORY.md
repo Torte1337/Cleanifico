@@ -27,8 +27,8 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 - Cleanifico Office stellt `/login`, `/zugriff-verweigert`, `/kunden`, `/objekte`, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer` bereit; eine öffentliche Registrierung existiert nicht.
 - Standard-Zeittypen werden genau einmal als normale Datensätze angelegt. Der technische Marker `TimeTypes.StandardData.v1` verhindert späteres Reseeding; Kundenänderungen werden niemals überschrieben.
 - Rollen werden beim Start idempotent angelegt. Ein erster Owner entsteht nur durch explizite Secret-/Konfigurationswerte ohne fest codiertes Passwort.
-- Eine zentrale fail-closed Lizenzgrenze schützt die Business-Policies und Office-Fachseiten zusätzlich zu Identity/Rollen. FergensHub besitzt derzeit noch keinen externen Lizenzabfrage-Contract; der produktive Adapter liefert deshalb kontrolliert `Unavailable`, bis ein realer Contract angebunden werden kann.
-- Die vorhandene FergensHub-Referenz modelliert Tenant-, Product-, TenantProduct- und TenantProductFeature-Aktivität sowie effektive Features, aber keine Laufzeit/Ablaufdaten, Limits oder externe Abfrage-API. Assetfico und Discovery sind im bereitgestellten Projektstamm nicht vorhanden.
+- Cleanifico verwendet das AssetFico-Lizenzprinzip: eine installationsgebundene, lokal atomar persistierte und mit ECDSA P-256 signierte Lease ist 30 Tage regulär und weitere 14 Tage im Offline-Toleranzzeitraum gültig. `Valid` und `Grace` erlauben Businesszugriff; `NotActivated`, `Expired` und `Invalid` sperren fail-closed.
+- Aktivierung und Erneuerung verwenden die bereits von AssetFico definierten Verträge `POST api/licensing/v1/activate` und `POST api/licensing/v1/refresh`, den Produktcode `CLEANIFICO`, eine persistente Installation-ID sowie geheime `flk1_`-/`flr1_`-Credentials. Der aktuelle FergensHub-Stand implementiert diese Runtime-Endpunkte und das zugehörige Lease-Issuing noch nicht.
 
 ## Zentrale Dateien und Typen
 
@@ -42,7 +42,7 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 - `src/Cleanifico.Infrastructure/Persistence/Migrations`: versionierte Schemaänderungen.
 - `src/Cleanifico.Infrastructure/Security`: Identity-Persistenz, Benutzerverwaltung, Bootstrap und Active-User-Prüfung.
 - `src/Cleanifico.Application/Licensing`: interner Lizenz-Port und kontrollierte Statuswerte.
-- `src/Cleanifico.Infrastructure/Licensing`: fail-closed Adaptergrenze für den noch fehlenden FergensHub-Contract.
+- `src/Cleanifico.Infrastructure/Licensing`: lokaler License State, AssetFico-kompatible Lease-Verifikation, Aktivierungs-/Refresh-Client und Hintergrund-Erneuerung.
 - `src/Cleanifico.Contracts/Security`: zentrale Rollen-, Policy- und Cookie-Namen.
 - `src/Cleanifico.Api/ApiApplication.cs`: Composition Root, Fehlerbehandlung und Routenregistrierung.
 - `src/Cleanifico.Web/ApiClients`: typisierte API-Zugriffe ohne Serverprojekt-Abhängigkeit.
@@ -59,7 +59,7 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 - Benutzerkonten und spätere fachliche Mitarbeiterdatensätze sind getrennte Konzepte; eine Zuordnung wird erst mit konkreten Anforderungen eingeführt.
 - Der letzte aktive Owner darf weder deaktiviert werden noch die Owner-Rolle verlieren.
 - Lizenzprüfung ist eine zusätzliche Policy-Anforderung: gültige Lizenz plus authentifizierter aktiver Benutzer plus passende Rolle. Authentifizierung und Autorisierung werden nicht ersetzt.
-- Fehlender oder nicht erreichbarer externer Lizenz-Contract sperrt Businessfunktionen kontrolliert; es gibt keine lokale Lizenzdatenbank oder Konfigurationsfreischaltung.
+- Nur eine kryptografisch verifizierte, zum Produkt `CLEANIFICO` und zur lokalen Installation-ID passende Lease mit Feature `base` kann Businessfunktionen freischalten. Ein FergensHub-Ausfall entwertet eine noch `Valid`/`Grace` befindliche Lease nicht; nach Grace gilt fail-closed.
 - Stammdaten mit späterem Historienbezug werden regulär deaktiviert; physisches Löschen ist nur bei fehlenden Referenzen zulässig.
 - Ein Customer besitzt null bis viele CleaningObjects; jedes CleaningObject besitzt genau einen Customer. Object-Adressen bleiben von der Kunden-Verwaltungsadresse getrennt.
 - CustomerNumber ist tenantlokal case-insensitive eindeutig, wird getrimmt und bleibt änderbar.

@@ -53,6 +53,8 @@ public static class SecurityAuthorizationExtensions
             .AddPolicy(SecurityPolicies.ManageRoles, policy =>
                 policy.RequireRole([.. SecurityRoles.Administrators]).AddRequirements(new ActiveUserRequirement()))
             .AddPolicy(SecurityPolicies.AdministrationAccess, policy =>
+                policy.RequireRole([.. SecurityRoles.Administrators]).AddRequirements(new ActiveUserRequirement()))
+            .AddPolicy(SecurityPolicies.ManageLicense, policy =>
                 policy.RequireRole([.. SecurityRoles.Administrators]).AddRequirements(new ActiveUserRequirement()));
 
         return services;

@@ -6,6 +6,9 @@
 # dotenv files
 .env
 
+# Local licensing state contains an installation-bound refresh credential.
+src/Cleanifico.Api/config/license-state.json
+
 # User-specific files
 *.rsuser
 *.suo
