@@ -24,6 +24,8 @@
 - Keine Template-Demos, toten Code, unnötigen Packages oder unbegründeten Breaking Changes einführen.
 - Keine Geschäftsanforderungen erfinden.
 - Fachliche Stammdaten mit Historienbezug bevorzugt deaktivieren statt löschen.
+- `CleaningObject` gehört verpflichtend zu genau einem `Customer`; die Beziehung darf keinen Cascade Delete verwenden, und referenzierte Customers dürfen nicht physisch gelöscht werden.
+- Objektnummern sind tenantlokal eindeutig und änderbar; Objektadressen bleiben unabhängig von Kunden-Verwaltungsadressen.
 - Kunden sind Auftraggeber und können später mehrere Objekte besitzen; referenzierte Kunden dürfen dann nur deaktiviert werden.
 - Kundennummern sind innerhalb der tenantlokalen Datenbank eindeutig und bleiben durch Benutzer änderbar.
 - Zeittypen sind frei konfigurierbare Datensätze, keine Enums; Standard-Zeittypen niemals sperren oder durch Initialisierung zurücksetzen.

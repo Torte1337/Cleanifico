@@ -1,3 +1,4 @@
+using Cleanifico.Application.CleaningObjects;
 using Cleanifico.Application.CleaningTypes;
 using Cleanifico.Application.Customers;
 using Cleanifico.Application.Security;
@@ -32,6 +33,22 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 Results.Problem(
                     statusCode: StatusCodes.Status409Conflict,
                     title: "Reinigungstyp konnte nicht geändert werden",
+                    detail: conflictException.Message,
+                    extensions: new Dictionary<string, object?>
+                    {
+                        ["field"] = conflictException.Field
+                    }),
+
+            CleaningObjectNotFoundException notFoundException =>
+                Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Objekt nicht gefunden",
+                    detail: notFoundException.Message),
+
+            CleaningObjectConflictException conflictException =>
+                Results.Problem(
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Objekt konnte nicht geändert werden",
                     detail: conflictException.Message,
                     extensions: new Dictionary<string, object?>
                     {

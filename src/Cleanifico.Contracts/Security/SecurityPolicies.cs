@@ -10,6 +10,8 @@ public static class SecurityPolicies
     public const string ViewTimeTypes = "ViewTimeTypes";
     public const string ManageCustomers = "ManageCustomers";
     public const string ViewCustomers = "ViewCustomers";
+    public const string ManageObjects = "ManageObjects";
+    public const string ViewObjects = "ViewObjects";
     public const string ManageUsers = "ManageUsers";
     public const string ManageRoles = "ManageRoles";
     public const string AdministrationAccess = "AdministrationAccess";

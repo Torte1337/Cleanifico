@@ -2,8 +2,10 @@
 @rendermode InteractiveServer
 @attribute [Authorize(Policy = SecurityPolicies.ViewCustomers)]
 @using Cleanifico.Contracts.Customers
+@using Cleanifico.Contracts.CleaningObjects
 @using Cleanifico.Web.ApiClients
 @inject ICustomersApiClient ApiClient
+@inject ICleaningObjectsApiClient ObjectsApiClient
 
 <PageTitle>Kunden | Cleanifico Office</PageTitle>
 
@@ -168,6 +170,22 @@
                     <h3>Notizen</h3>
                     <p class="notes">@FormatOrDash(detailCustomer.Notes)</p>
                 </section>
+                <section>
+                    <h3>Objekte (@detailObjects.Count)</h3>
+                    @if (detailObjects.Count == 0)
+                    {
+                        <p class="notes">Diesem Kunden sind noch keine Objekte zugeordnet.</p>
+                    }
+                    else
+                    {
+                        <ul>
+                            @foreach (var item in detailObjects)
+                            {
+                                <li><a href="@($"/objekte?customerId={detailCustomer.Id}&detailId={item.Id}")">@item.Name (@item.ObjectNumber)</a></li>
+                            }
+                        </ul>
+                    }
+                </section>
             </div>
 
             <footer>
@@ -310,6 +328,7 @@
     private Guid? editingId;
     private UpdateCustomerRequest formModel = new();
     private CustomerResponse? detailCustomer;
+    private readonly List<CleaningObjectResponse> detailObjects = [];
     private PendingConfirmation? pendingConfirmation;
 
     protected override Task OnInitializedAsync() => LoadAsync();
@@ -415,7 +434,12 @@
         errorMessage = null;
         try
         {
-            detailCustomer = await ApiClient.GetByIdAsync(id);
+            var customerTask = ApiClient.GetByIdAsync(id);
+            var objectsTask = ObjectsApiClient.GetAllAsync(null, null, id);
+            await Task.WhenAll(customerTask, objectsTask);
+            detailCustomer = await customerTask;
+            detailObjects.Clear();
+            detailObjects.AddRange(await objectsTask);
         }
         catch (ApiClientException exception)
         {
@@ -427,7 +451,11 @@
         }
     }
 
-    private void CloseDetails() => detailCustomer = null;
+    private void CloseDetails()
+    {
+        detailCustomer = null;
+        detailObjects.Clear();
+    }
 
     private void ConfirmDeactivate(CustomerResponse customer) =>
         pendingConfirmation = new(

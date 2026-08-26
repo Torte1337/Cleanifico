@@ -1,0 +1,206 @@
+@page "/objekte"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = SecurityPolicies.ViewObjects)]
+@using Cleanifico.Contracts.CleaningObjects
+@using Cleanifico.Contracts.Customers
+@using Cleanifico.Web.ApiClients
+@inject ICleaningObjectsApiClient ObjectsApi
+@inject ICustomersApiClient CustomersApi
+
+<PageTitle>Objekte | Cleanifico Office</PageTitle>
+
+<section class="page-heading">
+    <div><p class="eyebrow">Leistungsorte</p><h1>Objekte</h1><p>Verwalten Sie Reinigungsobjekte, Anschriften und Ansprechpartner.</p></div>
+    <AuthorizeView Policy="@SecurityPolicies.ManageObjects">
+        <button class="button button-primary" type="button" @onclick="OpenCreate">＋ Objekt anlegen</button>
+    </AuthorizeView>
+</section>
+
+@if (feedback is not null) { <div class="message message-success" role="status">@feedback</div> }
+@if (error is not null) { <div class="message message-error" role="alert">@error</div> }
+
+<section class="content-card">
+    <form class="toolbar" @onsubmit="LoadObjectsAsync" @onsubmit:preventDefault>
+        <label class="search-field"><span class="visually-hidden">Objekt suchen</span><span aria-hidden="true">⌕</span>
+            <input placeholder="Nummer, Name, Ort, Kontakt oder Kunde..." @bind="search" />
+        </label>
+        <label class="status-filter"><span>Status</span><select @bind="statusFilter" @bind:after="LoadObjectsAsync">
+            <option value="all">Alle</option><option value="active">Aktiv</option><option value="inactive">Inaktiv</option>
+        </select></label>
+        <label class="status-filter"><span>Kunde</span><select @bind="customerFilter" @bind:after="LoadObjectsAsync">
+            <option value="">Alle Kunden</option>
+            @foreach (var customer in customers) { <option value="@customer.Id">@customer.CompanyName (@customer.CustomerNumber)</option> }
+        </select></label>
+        <button class="button button-secondary" type="submit">Suchen</button>
+    </form>
+
+    @if (loading) { <div class="loading-state" role="status">Objekte werden geladen…</div> }
+    else if (objects.Count == 0) { <div class="empty-state"><strong>Keine Objekte gefunden</strong><p>Passen Sie Suche oder Filter an.</p></div> }
+    else
+    {
+        <div class="table-scroll"><table><thead><tr>
+            <th>Objektnummer</th><th>Name</th><th>Kunde</th><th>Ort</th><th>Ansprechpartner</th><th>Status</th><th class="actions-column">Aktionen</th>
+        </tr></thead><tbody>
+        @foreach (var item in objects)
+        {
+            <tr class="@(item.IsActive ? null : "inactive-row")">
+                <td><span class="number-chip">@item.ObjectNumber</span></td><td><strong>@item.Name</strong></td>
+                <td>@item.CustomerCompanyName <small>@item.CustomerNumber</small></td><td>@Value(item.City)</td>
+                <td>@ContactName(item)</td><td><span class="status-badge @(item.IsActive ? "active" : "inactive")">@(item.IsActive ? "Aktiv" : "Inaktiv")</span></td>
+                <td><div class="row-actions">
+                    <button type="button" @onclick="() => OpenDetailsAsync(item.Id)">Details</button>
+                    <AuthorizeView Policy="@SecurityPolicies.ManageObjects"><Authorized>
+                        <button type="button" @onclick="() => OpenEdit(item)">Bearbeiten</button>
+                        @if (item.IsActive) { <button type="button" @onclick="() => Ask(item, ActionKind.Deactivate)">Deaktivieren</button> }
+                        else { <button type="button" @onclick="() => ActivateAsync(item)">Reaktivieren</button> }
+                        <button class="danger-action" type="button" @onclick="() => Ask(item, ActionKind.Delete)">Löschen</button>
+                    </Authorized></AuthorizeView>
+                </div></td>
+            </tr>
+        }
+        </tbody></table></div>
+    }
+</section>
+
+@if (detail is not null)
+{
+    <div class="modal-backdrop" role="presentation"><section class="modal detail-modal" role="dialog" aria-modal="true" aria-labelledby="object-detail-title">
+        <header><div><p class="eyebrow">Objektdetails</p><h2 id="object-detail-title">@detail.Name</h2><span class="detail-number">@detail.ObjectNumber</span></div>
+            <button class="icon-button" type="button" aria-label="Details schließen" @onclick="CloseDetails">×</button></header>
+        <div class="detail-grid">
+            <section><h3>Stammdaten</h3><dl><dt>Kunde</dt><dd>@detail.CustomerCompanyName (@detail.CustomerNumber)</dd><dt>Status</dt><dd>@(detail.IsActive ? "Aktiv" : "Inaktiv")</dd></dl></section>
+            <section><h3>Objektadresse</h3><dl><dt>Straße</dt><dd>@Value(detail.Street)</dd><dt>PLZ / Ort</dt><dd>@PostalCity(detail)</dd><dt>Land</dt><dd>@Value(detail.Country)</dd></dl></section>
+            <section><h3>Kontakt vor Ort</h3><dl><dt>Name</dt><dd>@ContactName(detail)</dd><dt>E-Mail</dt><dd>@Value(detail.ContactEmail)</dd><dt>Telefon</dt><dd>@Value(detail.ContactPhone)</dd></dl></section>
+            <section><h3>Zugangshinweise</h3><p class="notes">@Value(detail.AccessNotes)</p></section>
+            <section><h3>Reinigungshinweise</h3><p class="notes">@Value(detail.CleaningNotes)</p></section>
+        </div>
+        <footer><AuthorizeView Policy="@SecurityPolicies.ManageObjects"><button class="button button-primary" type="button" @onclick="() => EditFromDetails(detail)">Bearbeiten</button></AuthorizeView>
+            <button class="button button-secondary" type="button" @onclick="CloseDetails">Schließen</button></footer>
+    </section></div>
+}
+
+@if (editOpen)
+{
+    <div class="modal-backdrop" role="presentation"><section class="modal edit-modal" role="dialog" aria-modal="true" aria-labelledby="object-edit-title">
+        <header><div><p class="eyebrow">Objekt</p><h2 id="object-edit-title">@(editingId.HasValue ? "Objekt bearbeiten" : "Objekt anlegen")</h2></div>
+            <button class="icon-button" type="button" aria-label="Dialog schließen" @onclick="CloseEdit">×</button></header>
+        @if (dialogError is not null) { <div class="message message-error" role="alert">@dialogError</div> }
+        <EditForm Model="form" OnValidSubmit="SaveAsync" FormName="object-form"><DataAnnotationsValidator />
+            <div class="form-grid">
+                <div class="form-field"><label for="object-number">Objektnummer</label><InputText id="object-number" @bind-Value="form.ObjectNumber" /><ValidationMessage For="() => form.ObjectNumber" /></div>
+                <div class="form-field form-field-wide"><label for="object-name">Name</label><InputText id="object-name" @bind-Value="form.Name" /><ValidationMessage For="() => form.Name" /></div>
+                <div class="form-field form-field-wide"><label for="object-customer">Kunde</label><InputSelect id="object-customer" @bind-Value="form.CustomerId"><option value="@Guid.Empty">Kunde auswählen</option>
+                    @foreach (var customer in SelectableCustomers()) { <option value="@customer.Id">@customer.CompanyName (@customer.CustomerNumber)@(!customer.IsActive ? " – inaktiv" : null)</option> }
+                </InputSelect><ValidationMessage For="() => form.CustomerId" /></div>
+                <h3 class="form-section-title">Objektadresse</h3>
+                <div class="form-field form-field-wide"><label for="object-street">Straße</label><InputText id="object-street" @bind-Value="form.Street" /></div>
+                <div class="form-field form-field-small"><label for="object-postal">PLZ</label><InputText id="object-postal" @bind-Value="form.PostalCode" /></div>
+                <div class="form-field"><label for="object-city">Ort</label><InputText id="object-city" @bind-Value="form.City" /></div>
+                <div class="form-field"><label for="object-country">Land</label><InputText id="object-country" @bind-Value="form.Country" /></div>
+                <h3 class="form-section-title">Kontakt vor Ort</h3>
+                <div class="form-field"><label for="object-first">Vorname</label><InputText id="object-first" @bind-Value="form.ContactFirstName" /></div>
+                <div class="form-field"><label for="object-last">Nachname</label><InputText id="object-last" @bind-Value="form.ContactLastName" /></div>
+                <div class="form-field"><label for="object-email">E-Mail</label><InputText id="object-email" type="email" @bind-Value="form.ContactEmail" /><ValidationMessage For="() => form.ContactEmail" /></div>
+                <div class="form-field"><label for="object-phone">Telefon</label><InputText id="object-phone" @bind-Value="form.ContactPhone" /></div>
+                <div class="form-field form-field-wide"><label for="object-access">Zugangshinweise</label><InputTextArea id="object-access" @bind-Value="form.AccessNotes" rows="3" /></div>
+                <div class="form-field form-field-wide"><label for="object-cleaning">Reinigungshinweise</label><InputTextArea id="object-cleaning" @bind-Value="form.CleaningNotes" rows="3" /></div>
+            </div>
+            <footer><button class="button button-secondary" type="button" @onclick="CloseEdit">Abbrechen</button><button class="button button-primary" type="submit" disabled="@saving">@(saving ? "Wird gespeichert…" : "Speichern")</button></footer>
+        </EditForm>
+    </section></div>
+}
+
+@if (pending is not null)
+{
+    <div class="modal-backdrop" role="presentation"><section class="modal confirmation-modal" role="alertdialog" aria-modal="true">
+        <header><h2>@(pending.Kind == ActionKind.Delete ? "Objekt endgültig löschen?" : "Objekt deaktivieren?")</h2></header>
+        <p>@pending.Item.Name (@pending.Item.ObjectNumber)</p>
+        <footer><button class="button button-secondary" type="button" @onclick="() => pending = null">Abbrechen</button><button class="button @(pending.Kind == ActionKind.Delete ? "button-danger" : "button-primary")" type="button" @onclick="ExecuteAsync">Bestätigen</button></footer>
+    </section></div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "customerId")] public Guid? InitialCustomerId { get; set; }
+    [SupplyParameterFromQuery(Name = "detailId")] public Guid? InitialDetailId { get; set; }
+    private readonly List<CleaningObjectResponse> objects = [];
+    private readonly List<CustomerResponse> customers = [];
+    private string search = ""; private string statusFilter = "all"; private string customerFilter = "";
+    private string? error; private string? feedback; private string? dialogError;
+    private bool loading; private bool saving; private bool editOpen; private Guid? editingId;
+    private UpdateCleaningObjectRequest form = new(); private CleaningObjectResponse? detail; private PendingAction? pending;
+
+    protected override async Task OnInitializedAsync()
+    {
+        customerFilter = InitialCustomerId?.ToString() ?? "";
+        await LoadCustomersAsync();
+        await LoadObjectsAsync();
+        if (InitialDetailId.HasValue) await OpenDetailsAsync(InitialDetailId.Value);
+    }
+
+    private async Task LoadCustomersAsync()
+    {
+        try { customers.AddRange(await CustomersApi.GetAllAsync(null, null)); }
+        catch (Exception ex) when (ex is ApiClientException or HttpRequestException) { error = "Kunden konnten nicht geladen werden."; }
+    }
+
+    private async Task LoadObjectsAsync()
+    {
+        loading = true; error = null;
+        try { objects.Clear(); objects.AddRange(await ObjectsApi.GetAllAsync(search, SelectedStatus(), SelectedCustomer())); }
+        catch (ApiClientException ex) { error = $"Laden fehlgeschlagen: {ex.Message}"; }
+        catch (HttpRequestException) { error = "Laden fehlgeschlagen: Die Cleanifico API ist nicht erreichbar."; }
+        finally { loading = false; }
+    }
+
+    private bool? SelectedStatus() => statusFilter switch { "active" => true, "inactive" => false, _ => null };
+    private Guid? SelectedCustomer() => Guid.TryParse(customerFilter, out var id) ? id : null;
+    private IEnumerable<CustomerResponse> SelectableCustomers() => customers.Where(c => c.IsActive || c.Id == form.CustomerId).OrderBy(c => c.CompanyName);
+    private void OpenCreate() { editingId = null; form = new UpdateCleaningObjectRequest(); dialogError = null; editOpen = true; }
+    private void OpenEdit(CleaningObjectResponse item) { editingId = item.Id; form = ToForm(item); dialogError = null; editOpen = true; }
+    private void EditFromDetails(CleaningObjectResponse item) { detail = null; OpenEdit(item); }
+    private void CloseEdit() { editOpen = false; dialogError = null; }
+    private async Task OpenDetailsAsync(Guid id) { try { detail = await ObjectsApi.GetByIdAsync(id); } catch (ApiClientException ex) { error = ex.Message; } }
+    private void CloseDetails() => detail = null;
+    private void Ask(CleaningObjectResponse item, ActionKind kind) => pending = new(item, kind);
+
+    private async Task SaveAsync()
+    {
+        saving = true; dialogError = null;
+        try
+        {
+            if (editingId.HasValue) { await ObjectsApi.UpdateAsync(editingId.Value, form); feedback = "Objekt wurde gespeichert."; }
+            else { await ObjectsApi.CreateAsync(ToCreate(form)); feedback = "Objekt wurde angelegt."; }
+            CloseEdit(); await LoadObjectsAsync();
+        }
+        catch (ApiClientException ex) { dialogError = ex.Message; }
+        catch (HttpRequestException) { dialogError = "Die Cleanifico API ist nicht erreichbar."; }
+        finally { saving = false; }
+    }
+
+    private async Task ActivateAsync(CleaningObjectResponse item)
+    {
+        try { await ObjectsApi.ActivateAsync(item.Id); feedback = "Objekt wurde reaktiviert."; await LoadObjectsAsync(); }
+        catch (ApiClientException ex) { error = ex.Message; }
+    }
+
+    private async Task ExecuteAsync()
+    {
+        if (pending is null) return;
+        var action = pending; pending = null;
+        try
+        {
+            if (action.Kind == ActionKind.Delete) { await ObjectsApi.DeleteAsync(action.Item.Id); feedback = "Objekt wurde endgültig gelöscht."; }
+            else { await ObjectsApi.DeactivateAsync(action.Item.Id); feedback = "Objekt wurde deaktiviert."; }
+            await LoadObjectsAsync();
+        }
+        catch (ApiClientException ex) { error = ex.Message; }
+    }
+
+    private static UpdateCleaningObjectRequest ToForm(CleaningObjectResponse x) => new() { ObjectNumber=x.ObjectNumber, CustomerId=x.CustomerId, Name=x.Name, Street=x.Street, PostalCode=x.PostalCode, City=x.City, Country=x.Country, ContactFirstName=x.ContactFirstName, ContactLastName=x.ContactLastName, ContactEmail=x.ContactEmail, ContactPhone=x.ContactPhone, AccessNotes=x.AccessNotes, CleaningNotes=x.CleaningNotes };
+    private static CreateCleaningObjectRequest ToCreate(UpdateCleaningObjectRequest x) => new() { ObjectNumber=x.ObjectNumber, CustomerId=x.CustomerId, Name=x.Name, Street=x.Street, PostalCode=x.PostalCode, City=x.City, Country=x.Country, ContactFirstName=x.ContactFirstName, ContactLastName=x.ContactLastName, ContactEmail=x.ContactEmail, ContactPhone=x.ContactPhone, AccessNotes=x.AccessNotes, CleaningNotes=x.CleaningNotes };
+    private static string Value(string? x) => string.IsNullOrWhiteSpace(x) ? "–" : x;
+    private static string ContactName(CleaningObjectResponse x) => Value(string.Join(' ', new[] { x.ContactFirstName, x.ContactLastName }.Where(v => !string.IsNullOrWhiteSpace(v))));
+    private static string PostalCity(CleaningObjectResponse x) => Value(string.Join(' ', new[] { x.PostalCode, x.City }.Where(v => !string.IsNullOrWhiteSpace(v))));
+    private enum ActionKind { Deactivate, Delete }
+    private sealed record PendingAction(CleaningObjectResponse Item, ActionKind Kind);
+}

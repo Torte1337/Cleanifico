@@ -16,6 +16,8 @@ public interface ICustomerRepository
         Guid? excludedId,
         CancellationToken cancellationToken);
 
+    Task<bool> HasCleaningObjectsAsync(Guid customerId, CancellationToken cancellationToken);
+
     Task AddAsync(Customer customer, CancellationToken cancellationToken);
 
     void Remove(Customer customer);

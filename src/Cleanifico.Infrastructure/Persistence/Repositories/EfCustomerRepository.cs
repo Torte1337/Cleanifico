@@ -47,6 +47,9 @@ public sealed class EfCustomerRepository(CleanificoDbContext dbContext) : ICusto
                 && (!excludedId.HasValue || customer.Id != excludedId.Value),
             cancellationToken);
 
+    public Task<bool> HasCleaningObjectsAsync(Guid customerId, CancellationToken cancellationToken) =>
+        dbContext.CleaningObjects.AnyAsync(item => item.CustomerId == customerId, cancellationToken);
+
     public async Task AddAsync(Customer customer, CancellationToken cancellationToken) =>
         await dbContext.Customers.AddAsync(customer, cancellationToken);
 

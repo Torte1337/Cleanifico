@@ -17,13 +17,14 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 - `CleaningType` ist der erste vollständige vertikale Fachschnitt: Domain, Application, Contracts, EF-/MySQL-Persistenz, REST API und Blazor-Seite.
 - `TimeType` ist ein vollständiger Stammdaten-Schnitt mit frei änderbaren Arbeitszeit-/Bezahlungs-/Objekt-/Abwesenheitsmerkmalen, Farbe, Sortierung und Lifecycle.
 - `Customer` bildet tenantlokale Auftraggeber mit eindeutiger änderbarer Kundennummer, direktem Ansprechpartner, Verwaltungsadresse, Notizen und Lifecycle ab.
+- `CleaningObject` bildet den konkreten Reinigungsort mit eigener Adresse, Kontakt, Zugangs-/Reinigungshinweisen und verpflichtendem Customer-Bezug ab.
 - `CleanificoDbContext` nutzt EF Core 9.0.19 und Pomelo 9.0.0 mit einem fest konfigurierten MySQL-8.4-Serverprofil.
 - Der Laufzeit-Connection-String wird ausschließlich unter `ConnectionStrings:Cleanifico` erwartet.
-- Die Migrationen heißen `InitialCleanificoPersistence`, `AddTenantIdentity`, `AddConfigurableTimeTypes` und `AddCustomers`; sie werden nicht automatisch beim Hoststart ausgeführt.
+- Die Migrationen heißen `InitialCleanificoPersistence`, `AddTenantIdentity`, `AddConfigurableTimeTypes`, `AddCustomers` und `AddCleaningObjects`; sie werden nicht automatisch beim Hoststart ausgeführt.
 - `ApplicationUser` und ASP.NET Core Identity liegen ohne zusätzliche `TenantId` in derselben tenantlokalen Datenbank. Benutzername ist die normalisierte, eindeutige E-Mail; Profile führen Vorname, Nachname, Aktivstatus und UTC-Auditzeiten.
-- Rollen: `Owner`, `Administrator`, `Dispatcher`, `ObjectManager`, `Employee`. Zentrale Policies umfassen Office-Zugang, Lese-/Schreibrechte für CleaningType, TimeType und Customer, Benutzer-/Rollenverwaltung sowie die interne Aktivitätsprüfung.
+- Rollen: `Owner`, `Administrator`, `Dispatcher`, `ObjectManager`, `Employee`. Zentrale Policies umfassen Office-Zugang, Lese-/Schreibrechte für CleaningType, TimeType, Customer und CleaningObject, Benutzer-/Rollenverwaltung sowie die interne Aktivitätsprüfung.
 - API und Web verwenden einen gemeinsamen verschlüsselten Identity-Cookie und Data-Protection-Schlüsselbund. Inaktive Benutzer werden bei Anmeldung und laufender Autorisierung abgewiesen.
-- Cleanifico Office stellt `/login`, `/zugriff-verweigert`, `/kunden`, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer` bereit; eine öffentliche Registrierung existiert nicht.
+- Cleanifico Office stellt `/login`, `/zugriff-verweigert`, `/kunden`, `/objekte`, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer` bereit; eine öffentliche Registrierung existiert nicht.
 - Standard-Zeittypen werden genau einmal als normale Datensätze angelegt. Der technische Marker `TimeTypes.StandardData.v1` verhindert späteres Reseeding; Kundenänderungen werden niemals überschrieben.
 - Rollen werden beim Start idempotent angelegt. Ein erster Owner entsteht nur durch explizite Secret-/Konfigurationswerte ohne fest codiertes Passwort.
 - Lizenzprüfung und Discovery sind weiterhin nicht implementiert.
@@ -33,6 +34,7 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 - `src/Cleanifico.Domain/CleaningTypes/CleaningType.cs`: Entity, Normalisierung und Invarianten.
 - `src/Cleanifico.Domain/TimeTypes/TimeType.cs`: frei konfigurierbarer Zeittyp mit fachlichen Merkmalen und Lifecycle.
 - `src/Cleanifico.Domain/Customers/Customer.cs`: Auftraggeber, Ansprechpartner, Verwaltungsadresse und Lifecycle.
+- `src/Cleanifico.Domain/CleaningObjects/CleaningObject.cs`: Reinigungsort, Customer-Bezug, eigener Kontakt und Lifecycle.
 - `src/Cleanifico.Application/CleaningTypes`: Application Service und Persistenzabstraktion.
 - `src/Cleanifico.Infrastructure/Persistence/CleanificoDbContext.cs`: zentraler EF Core Context.
 - `src/Cleanifico.Infrastructure/Persistence/Configurations`: Fluent-API-Mappings.
@@ -54,8 +56,9 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 - Benutzerkonten und spätere fachliche Mitarbeiterdatensätze sind getrennte Konzepte; eine Zuordnung wird erst mit konkreten Anforderungen eingeführt.
 - Der letzte aktive Owner darf weder deaktiviert werden noch die Owner-Rolle verlieren.
 - Stammdaten mit späterem Historienbezug werden regulär deaktiviert; physisches Löschen ist nur bei fehlenden Referenzen zulässig.
-- Ein Customer kann später mehrere Objects besitzen. Object-Adressen werden nicht in die Kunden-Verwaltungsadresse integriert.
+- Ein Customer besitzt null bis viele CleaningObjects; jedes CleaningObject besitzt genau einen Customer. Object-Adressen bleiben von der Kunden-Verwaltungsadresse getrennt.
 - CustomerNumber ist tenantlokal case-insensitive eindeutig, wird getrimmt und bleibt änderbar.
+- ObjectNumber ist tenantlokal case-insensitive eindeutig, wird getrimmt und bleibt änderbar.
 - Listen von Reinigungstypen sind standardmäßig nach `SortOrder`, danach `Name` sortiert.
 - Zeittypen sind keine Enums und besitzen keine System-/Built-in-/Lock-Kennzeichen. Auch initiale Standardwerte bleiben vollständig änder- und löschbar.
 - Spätere `TimeEntry`-Datensätze müssen relevante Zeittypwerte zusätzlich zur ID als historischen Snapshot führen.

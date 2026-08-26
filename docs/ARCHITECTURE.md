@@ -70,11 +70,11 @@ Jeder Tenant erhält eine eigene Tenant-ID, API-/Instanz, Konfiguration, Lizenz 
 
 `Cleanifico.Infrastructure` verwendet EF Core 9.0.19 mit dem stabilen Pomelo-Provider 9.0.0 und einem expliziten MySQL-8.4-Serverprofil. Pomelo 9 ist der derzeit stabile Providerzweig; deshalb bleibt auch EF Core auf der kompatiblen 9.0-Patchlinie, obwohl die Hosts `net10.0` verwenden. Ein späterer gemeinsamer Wechsel auf EF Core/Pomelo 10 erfolgt erst mit einer stabilen kompatiblen Providerfreigabe.
 
-`CleanificoDbContext` ist der zentrale Context. Entity-Mappings liegen in separaten `IEntityTypeConfiguration<T>`-Klassen und werden aus der Infrastructure-Assembly geladen. `CleaningType` und `TimeType` besitzen eindeutige, case-insensitive Indizes für Name und Code. `Customer` besitzt eine eindeutige, case-insensitive Kundennummer sowie Lookup-Indizes für Status/Firmenname und Ort. Technische Zeitstempel werden als `datetime(6)` in UTC geführt.
+`CleanificoDbContext` ist der zentrale Context. Entity-Mappings liegen in separaten `IEntityTypeConfiguration<T>`-Klassen und werden aus der Infrastructure-Assembly geladen. `CleaningType` und `TimeType` besitzen eindeutige, case-insensitive Indizes für Name und Code. `Customer` besitzt eine eindeutige, case-insensitive Kundennummer. `CleaningObject` besitzt eine eindeutige, case-insensitive Objektnummer und einen verpflichtenden Customer-Fremdschlüssel mit `Restrict`. Lookup-Indizes unterstützen Status-, Kunden- und Ortssuchen. Technische Zeitstempel werden als `datetime(6)` in UTC geführt.
 
 Der Laufzeit-Connection-String kommt aus `ConnectionStrings:Cleanifico`; echte Zugangsdaten liegen nicht im Repository. Die API schlägt beim Start mit einer neutralen Konfigurationsmeldung fehl, wenn der Wert fehlt. Die Design-Time-Factory verwendet für reine Modellerzeugung eine nicht funktionsfähige Platzhalterverbindung.
 
-Schemaänderungen liegen versioniert unter `Persistence/Migrations`. Auf `InitialCleanificoPersistence`, `AddTenantIdentity` und `AddConfigurableTimeTypes` folgt `AddCustomers`. Der Host führt weder `EnsureCreated` noch `Database.Migrate` beim Start aus. Lokale und spätere produktive Tenant-Migrationen werden explizit und kontrolliert ausgeführt.
+Schemaänderungen liegen versioniert unter `Persistence/Migrations`. Auf `InitialCleanificoPersistence`, `AddTenantIdentity`, `AddConfigurableTimeTypes` und `AddCustomers` folgt `AddCleaningObjects`. Der Host führt weder `EnsureCreated` noch `Database.Migrate` beim Start aus. Lokale und spätere produktive Tenant-Migrationen werden explizit und kontrolliert ausgeführt.
 
 Die Persistenzabstraktion gehört in Application, die EF-Implementierung in Infrastructure:
 
@@ -100,15 +100,17 @@ MySQL-Fehler für eindeutige Indizes und spätere Fremdschlüssel werden in vers
 
 ## API und Web-App
 
-`Cleanifico.Api` ist der serverseitige Composition Root. Sie registriert Problem Details, zentrale Exception-Behandlung, Health Checks, Application Services und die Infrastructure-Adapter. Neben `GET /health` stellt sie Stammdaten-Routen unter `/api/cleaning-types`, `/api/time-types` und `/api/customers` bereit. Domainvalidierung führt zu `400`, fehlende Datensätze zu `404` und Eindeutigkeits-/Löschkonflikte zu `409`; unerwartete Fehler werden geloggt, aber ohne interne Details ausgeliefert.
+`Cleanifico.Api` ist der serverseitige Composition Root. Sie registriert Problem Details, zentrale Exception-Behandlung, Health Checks, Application Services und die Infrastructure-Adapter. Neben `GET /health` stellt sie Stammdaten-Routen unter `/api/cleaning-types`, `/api/time-types`, `/api/customers` und `/api/objects` bereit. Domainvalidierung führt zu `400`, fehlende Datensätze zu `404` und Eindeutigkeits-/Löschkonflikte zu `409`; unerwartete Fehler werden geloggt, aber ohne interne Details ausgeliefert.
 
-`Cleanifico.Web` ist eine eigenständige Blazor-Web-App mit serverseitiger Interaktivität. Sie referenziert nur öffentliche Contracts und ruft die API über typisierte HTTP-Clients auf. Die Seiten `/reinigungstypen`, `/zeittypen` und `/kunden` bieten Suche, Statusfilter, Listen, Dialoge zum Anlegen/Bearbeiten und klar getrennte Lifecycle-Aktionen. Die Kundenseite enthält zusätzlich eine echte read-only Detailabfrage für Stammdaten, Kontakt, Adresse und Status. Backendfehler werden als sichere deutsche Meldungen dargestellt; rohe Antworttexte oder Stacktraces werden nicht gezeigt.
+`Cleanifico.Web` ist eine eigenständige Blazor-Web-App mit serverseitiger Interaktivität. Sie referenziert nur öffentliche Contracts und ruft die API über typisierte HTTP-Clients auf. Die Seiten `/reinigungstypen`, `/zeittypen`, `/kunden` und `/objekte` bieten Suche, Statusfilter, Listen, Dialoge zum Anlegen/Bearbeiten und klar getrennte Lifecycle-Aktionen. Die Objektseite filtert zusätzlich nach Kunde; die Kundendetailansicht zeigt Anzahl und Direktlinks der zugeordneten Objekte. Backendfehler werden als sichere deutsche Meldungen dargestellt; rohe Antworttexte oder Stacktraces werden nicht gezeigt.
 
-## Kunden und spätere Objekte
+## Kunden und Objekte
 
-`Customer` ist der tenantlokale Auftraggeber. `CustomerNumber` ist ein benutzerverwalteter, case-insensitive eindeutiger Geschäftsschlüssel; die technische ID bleibt der Primärschlüssel. Ansprechpartner und Verwaltungsadresse liegen bis zu konkreten Mehrfachkontakt-Anforderungen direkt am Customer. Ein späteres `Object` gehört genau einem Customer und führt seine eigene Einsatz-/Reinigungsadresse; eine Objekt-Entity existiert noch nicht.
+`Customer` ist der tenantlokale Auftraggeber. `CustomerNumber` ist ein benutzerverwalteter, case-insensitive eindeutiger Geschäftsschlüssel; die technische ID bleibt der Primärschlüssel. Ansprechpartner und Verwaltungsadresse liegen bis zu konkreten Mehrfachkontakt-Anforderungen direkt am Customer. `CleaningObject` gehört genau einem Customer, besitzt eine eigene Einsatz-/Reinigungsadresse und einen optionalen direkten Kontakt. `ObjectNumber` ist tenantlokal case-insensitive eindeutig und änderbar.
 
-Physisches Löschen ist nur ohne fachliche Referenzen erlaubt. Sobald Objekte, Verträge, Rechnungen oder historische Daten auf einen Kunden verweisen, schützen Fremdschlüssel den Datensatz und Deaktivierung wird der reguläre Lifecycle. Es werden keine künstlichen Referenzen auf noch nicht vorhandene Module eingeführt.
+Customer zu CleaningObject ist eine verpflichtende 1:n-Beziehung ohne Cascade Delete. Besitzt ein Customer mindestens ein CleaningObject, weist der Application Service den Löschversuch verständlich zurück und der Datenbank-Fremdschlüssel schützt zusätzlich; Deaktivierung ist dann der reguläre Lifecycle. Es werden keine künstlichen Referenzen auf noch nicht vorhandene Module eingeführt.
+
+CleaningObjects dürfen derzeit physisch gelöscht werden, solange keine weiteren fachlichen Referenzen existieren. Sobald Verträge, Einsätze, Arbeitszeiten, Qualitätskontrollen oder historische Daten ein Objekt referenzieren, schützen Fremdschlüssel das Objekt und Deaktivierung wird der reguläre Lifecycle.
 
 ## Zeittypen und historische Stabilität
 
@@ -146,11 +148,11 @@ xUnit prüft derzeit:
 
 - Domain-Invarianten, Normalisierung und Cleaning-Type-Lifecycle,
 - TimeType-Invarianten, vollständige Änderbarkeit, Lifecycle und Standarddaten-Idempotenz ohne Reset,
-- Customer-Pflichtfelder, Normalisierung, Eindeutigkeit, Suche, Status, Lifecycle und EF-Mapping,
+- Customer- und CleaningObject-Pflichtfelder, Normalisierung, Eindeutigkeit, Suche, Status, Lifecycle und EF-Mapping einschließlich Restrict-FK,
 - Application-Orchestrierung, Eindeutigkeit, Suche, Filter und Sortierung,
 - das tatsächliche EF-/Pomelo-Modell einschließlich Feldlängen und Indizes,
 - Identity-Benutzer, Passwort-Hashing, Login, Inaktivität, Lockout, Rollen, Owner-Schutz und sicheren Bootstrap,
-- Cleaning-Type-, TimeType- und Customer-HTTP-Operationen sowie rollenabhängige `401`-/`403`-Fälle über einen lokalen Kestrel-Host,
+- Cleaning-Type-, TimeType-, Customer- und CleaningObject-HTTP-Operationen sowie rollenabhängige `401`-/`403`-Fälle über einen lokalen Kestrel-Host,
 - Login- und Routenschutz der eigenständigen Web-App,
 - die Abhängigkeitsfreiheit der Domain,
 - die exakten Projekt-Referenzen von Application, Infrastructure, API und Web,

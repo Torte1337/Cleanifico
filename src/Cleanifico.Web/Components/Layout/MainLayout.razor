@@ -29,6 +29,12 @@
                     Kunden
                 </NavLink>
             </AuthorizeView>
+            <AuthorizeView Policy="@SecurityPolicies.ViewObjects">
+                <NavLink href="/objekte">
+                    <span class="nav-icon" aria-hidden="true">▣</span>
+                    Objekte
+                </NavLink>
+            </AuthorizeView>
             <AuthorizeView Policy="@SecurityPolicies.ViewTimeTypes">
                 <NavLink href="/zeittypen">
                     <span class="nav-icon" aria-hidden="true">◷</span>

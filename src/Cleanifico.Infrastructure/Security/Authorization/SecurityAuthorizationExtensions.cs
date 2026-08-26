@@ -31,6 +31,10 @@ public static class SecurityAuthorizationExtensions
                 policy.RequireRole([.. SecurityRoles.Office]).AddRequirements(new ActiveUserRequirement()))
             .AddPolicy(SecurityPolicies.ManageCustomers, policy =>
                 policy.RequireRole([.. SecurityRoles.Administrators]).AddRequirements(new ActiveUserRequirement()))
+            .AddPolicy(SecurityPolicies.ViewObjects, policy =>
+                policy.RequireRole([.. SecurityRoles.Office]).AddRequirements(new ActiveUserRequirement()))
+            .AddPolicy(SecurityPolicies.ManageObjects, policy =>
+                policy.RequireRole([.. SecurityRoles.Administrators]).AddRequirements(new ActiveUserRequirement()))
             .AddPolicy(SecurityPolicies.ManageUsers, policy =>
                 policy.RequireRole([.. SecurityRoles.Administrators]).AddRequirements(new ActiveUserRequirement()))
             .AddPolicy(SecurityPolicies.ManageRoles, policy =>

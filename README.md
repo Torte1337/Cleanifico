@@ -11,8 +11,9 @@ Cleanifico ist eine mandantenfähige Betriebssoftware für Gebäudereinigungsunt
 - erster vertikaler Fachschnitt `CleaningType` mit Domain-Regeln, Application Service, REST API und Blazor-Verwaltung
 - frei konfigurierbare `TimeType`-Stammdaten mit einmalig initialisierten, vollständig änderbaren Standardwerten
 - Kundenverwaltung für Auftraggeber mit Ansprechpartner, Verwaltungsadresse, Detailansicht und Lifecycle
+- Objektverwaltung mit verpflichtendem Kundenbezug, eigener Objektadresse, direktem Kontakt und Lifecycle
 - separate ASP.NET Core API mit geschützten Stammdaten- und Benutzer-Endpunkten; nur `GET /health` und Login sind anonym erreichbar
-- separate Blazor-Web-App für Cleanifico Office mit Login, `/kunden`, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer`
+- separate Blazor-Web-App für Cleanifico Office mit Login, `/kunden`, `/objekte`, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer`
 - fünf xUnit-Testprojekte mit Domain-, Application-, Identity-, EF-, Architektur-, API- und Web-Integrationstests
 - noch keine Lizenzprüfung, Discovery-, Mobile- oder sonstigen externen Integrationen
 
@@ -117,9 +118,13 @@ Beim ersten Start nach der Migration `AddConfigurableTimeTypes` werden `ARB`, `P
 
 ## Kunden
 
-Kunden sind die Auftraggeber des tenantlokalen Reinigungsunternehmens. Sie werden unter `/api/customers` und in Cleanifico Office unter `/kunden` verwaltet. Die Kundennummer ist innerhalb der Tenant-Datenbank eindeutig und änderbar. Ansprechpartner und Verwaltungsadresse liegen zunächst direkt am Kunden; spätere Objektadressen gehören an das noch nicht implementierte Object-Modul.
+Kunden sind die Auftraggeber des tenantlokalen Reinigungsunternehmens. Sie werden unter `/api/customers` und in Cleanifico Office unter `/kunden` verwaltet. Die Kundennummer ist innerhalb der Tenant-Datenbank eindeutig und änderbar. Ansprechpartner und Verwaltungsadresse liegen direkt am Kunden.
 
-Owner und Administrator dürfen Kunden lesen und verwalten, Dispatcher und ObjectManager nur lesen. Employee besitzt keinen administrativen Zugriff. Solange keine fachlichen Referenzen existieren, darf ein Kunde physisch gelöscht werden. Mit späteren Objekten, Verträgen, Rechnungen oder historischen Daten ist ausschließlich Deaktivierung zulässig.
+Owner und Administrator dürfen Kunden lesen und verwalten, Dispatcher und ObjectManager nur lesen. Employee besitzt keinen administrativen Zugriff. Ein Kunde mit mindestens einem Objekt kann nicht physisch gelöscht werden; der reguläre Lifecycle ist dann die Deaktivierung.
+
+## Objekte
+
+Reinigungsobjekte werden unter `/api/objects` und in Cleanifico Office unter `/objekte` verwaltet. Jedes Objekt gehört verpflichtend zu einem realen Kunden, besitzt eine eigene Einsatzadresse und kann einen direkten Ansprechpartner sowie Zugangs- und Reinigungshinweise führen. Die Objektnummer ist tenantlokal eindeutig und änderbar. Das Kundendetail zeigt die zugeordneten Objekte mit Direktlinks.
 
 ## Dokumentation
 

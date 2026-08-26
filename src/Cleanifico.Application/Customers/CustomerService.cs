@@ -68,6 +68,13 @@ public sealed class CustomerService(
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         var customer = await GetByIdAsync(id, cancellationToken);
+        if (await repository.HasCleaningObjectsAsync(id, cancellationToken))
+        {
+            throw new CustomerConflictException(
+                "delete",
+                "Der Kunde besitzt mindestens ein Objekt und kann nicht endgültig gelöscht werden.");
+        }
+
         repository.Remove(customer);
         await repository.SaveChangesAsync(cancellationToken);
     }

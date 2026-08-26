@@ -98,6 +98,21 @@ public sealed class CustomerServiceTests
         Assert.Equal(3, repository.SaveChangesCalls);
     }
 
+    [Fact]
+    public async Task Delete_RejectsCustomerWithCleaningObjects()
+    {
+        var existing = CreateCustomer("K-100", "Muster GmbH");
+        var repository = new FakeCustomerRepository(existing) { HasCleaningObjects = true };
+        var service = CreateService(repository);
+
+        var exception = await Assert.ThrowsAsync<CustomerConflictException>(() => service.DeleteAsync(existing.Id));
+
+        Assert.Equal("delete", exception.Field);
+        Assert.Contains("mindestens ein Objekt", exception.Message);
+        Assert.Single(repository.Items);
+        Assert.Equal(0, repository.SaveChangesCalls);
+    }
+
     private static CustomerService CreateService(FakeCustomerRepository repository) =>
         new(repository, new FixedTimeProvider(Now));
 
@@ -137,6 +152,7 @@ public sealed class CustomerServiceTests
         public int SaveChangesCalls { get; private set; }
         public string? LastSearch { get; private set; }
         public bool? LastIsActive { get; private set; }
+        public bool HasCleaningObjects { get; set; }
 
         public Task<IReadOnlyList<Customer>> GetAllAsync(
             string? search,
@@ -178,6 +194,9 @@ public sealed class CustomerServiceTests
                     customer.CustomerNumber,
                     customerNumber,
                     StringComparison.OrdinalIgnoreCase)));
+
+        public Task<bool> HasCleaningObjectsAsync(Guid customerId, CancellationToken cancellationToken) =>
+            Task.FromResult(HasCleaningObjects);
 
         public Task AddAsync(Customer customer, CancellationToken cancellationToken)
         {

@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using Cleanifico.Contracts.CleaningTypes;
+using Cleanifico.Contracts.CleaningObjects;
 using Cleanifico.Contracts.Customers;
 using Cleanifico.Contracts.Security;
 using Cleanifico.Contracts.TimeTypes;
@@ -205,6 +206,50 @@ public sealed class AuthorizationEndpointTests
         Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
+    [Fact]
+    public async Task AnonymousObjectRequests_ReturnUnauthorized()
+    {
+        await using var host = await ApiTestHost.StartAnonymousWithObjectsAsync();
+        using var get = await host.Client.GetAsync("/api/objects");
+        using var post = await host.Client.PostAsJsonAsync("/api/objects", CreateObjectRequest(Guid.NewGuid()));
+        Assert.Equal(HttpStatusCode.Unauthorized, get.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, post.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(SecurityRoles.Owner)]
+    [InlineData(SecurityRoles.Administrator)]
+    public async Task AdministratorRoles_CanReadAndManageObjects(string role)
+    {
+        var customer = CleaningObjectEndpointTests.Customer("K-1", "Muster GmbH");
+        await using var host = await ApiTestHost.StartAsRoleWithObjectsAsync(role, [customer]);
+        using var get = await host.Client.GetAsync("/api/objects");
+        using var post = await host.Client.PostAsJsonAsync("/api/objects", CreateObjectRequest(customer.Id));
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+        Assert.Equal(HttpStatusCode.Created, post.StatusCode);
+    }
+
+    [Theory]
+    [InlineData(SecurityRoles.Dispatcher)]
+    [InlineData(SecurityRoles.ObjectManager)]
+    public async Task ReadOnlyOfficeRoles_CanReadButCannotManageObjects(string role)
+    {
+        var customer = CleaningObjectEndpointTests.Customer("K-1", "Muster GmbH");
+        await using var host = await ApiTestHost.StartAsRoleWithObjectsAsync(role, [customer]);
+        using var get = await host.Client.GetAsync("/api/objects");
+        using var post = await host.Client.PostAsJsonAsync("/api/objects", CreateObjectRequest(customer.Id));
+        Assert.Equal(HttpStatusCode.OK, get.StatusCode);
+        Assert.Equal(HttpStatusCode.Forbidden, post.StatusCode);
+    }
+
+    [Fact]
+    public async Task Employee_CannotUseObjectApi()
+    {
+        await using var host = await ApiTestHost.StartAsRoleWithObjectsAsync(SecurityRoles.Employee, []);
+        using var response = await host.Client.GetAsync("/api/objects");
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
     private static CreateCleaningTypeRequest CreateRequest() => new()
     {
         Name = "Sicherheitsreinigung",
@@ -235,6 +280,13 @@ public sealed class AuthorizationEndpointTests
     {
         CustomerNumber = "K-100",
         CompanyName = "Sicherheitskunde GmbH"
+    };
+
+    private static CreateCleaningObjectRequest CreateObjectRequest(Guid customerId) => new()
+    {
+        ObjectNumber = "O-100",
+        CustomerId = customerId,
+        Name = "Sicherheitsobjekt"
     };
 
     public enum HttpMethodName

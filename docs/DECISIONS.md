@@ -239,3 +239,13 @@ Entscheidung: Customer darf nur solange physisch gelöscht werden, wie keine fac
 Grund: Historische und abrechnungsrelevante Daten müssen ihren Auftraggeber dauerhaft nachvollziehbar behalten.
 
 Datum: 2026-08-26
+
+## DEC-025 – CleaningObject ist verpflichtend einem Customer zugeordnet
+
+Status: Accepted
+
+Entscheidung: `CleaningObject` bildet den tenantlokalen Reinigungsort mit eigener Adresse und eigener änderbarer Objektnummer ab. Jedes Objekt gehört genau einem Customer; ein Customer besitzt null bis viele Objekte. Der Fremdschlüssel verwendet `Restrict`, und der Application Service verhindert das physische Löschen eines Kunden mit Objekten durch einen verständlichen Konflikt.
+
+Grund: Auftraggeber und Einsatzort bleiben fachlich getrennt, während Referenzintegrität und spätere historische Nachvollziehbarkeit ohne Cascade Delete geschützt sind.
+
+Datum: 2026-08-26

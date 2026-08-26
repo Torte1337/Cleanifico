@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Cleanifico.Contracts.Customers;
+using Cleanifico.Domain.CleaningObjects;
 using Cleanifico.Domain.Customers;
 
 namespace Cleanifico.Api.Tests;
@@ -136,6 +137,27 @@ public sealed class CustomerEndpointTests
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
         Assert.Equal("customerNumber", problem.RootElement.GetProperty("field").GetString());
+    }
+
+    [Fact]
+    public async Task Delete_CustomerWithObjectReturnsConflict_ButUnreferencedCustomerCanBeDeleted()
+    {
+        var referenced = CreateCustomer("K-100", "Referenziert GmbH");
+        var unreferenced = CreateCustomer("K-200", "Frei GmbH");
+        var cleaningObject = CleaningObject.Create(
+            Guid.NewGuid(),
+            new CleaningObjectData("O-1", referenced.Id, "Zentrale", null, null, null, null, null, null, null, null, null, null),
+            CreatedAt);
+        await using var host = await ApiTestHost.StartWithObjectsAsync([referenced, unreferenced], cleaningObject);
+
+        using var blocked = await host.Client.DeleteAsync($"/api/customers/{referenced.Id}");
+        using var deleted = await host.Client.DeleteAsync($"/api/customers/{unreferenced.Id}");
+
+        Assert.Equal(HttpStatusCode.Conflict, blocked.StatusCode);
+        Assert.Contains("mindestens ein Objekt", await blocked.Content.ReadAsStringAsync());
+        Assert.Equal(HttpStatusCode.NoContent, deleted.StatusCode);
+        Assert.Contains(referenced, host.CustomerRepository.Items);
+        Assert.DoesNotContain(unreferenced, host.CustomerRepository.Items);
     }
 
     private static UpdateCustomerRequest Request(string number, string company) => new()
