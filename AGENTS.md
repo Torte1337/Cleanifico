@@ -32,6 +32,8 @@
 - Spätere Zeitbuchungen müssen historisch relevante Zeittyp-Eigenschaften als Snapshot speichern.
 - `Employee` ist die fachliche Personal-Entity und bleibt von `ApplicationUser` getrennt; eine spätere optionale Login-Verknüpfung darf nicht vorausgesetzt werden.
 - Personalnummern sind tenantlokal eindeutig und änderbar. Mitarbeiter dürfen nur ohne fachliche Referenzen physisch gelöscht werden; später ist Deaktivierung der reguläre Lifecycle.
+- `EmployeeContract` ist die einzige fachliche Quelle für Beschäftigungsart, Vertragszeitraum, Wochen-/Monatssollstunden und Urlaubsanspruch. Vertragsnummern sind tenantlokal eindeutig und änderbar; aktive Vertragszeiträume eines Mitarbeiters dürfen sich nicht überschneiden.
+- Employee zu EmployeeContract ist 1:n mit Restrict-Fremdschlüssel. Mitarbeiter mit Vertrag dürfen nicht physisch gelöscht werden; referenzierte Verträge später ebenfalls nur beenden oder deaktivieren.
 - Technische Audit-Zeitstempel grundsätzlich in UTC speichern.
 - Sicherheitsentscheidungen zentral über Rollen, Policies und Application-Services abbilden; Endpunkte nicht ad hoc nach Rollennamen verzweigen.
 - Geschäftliche API- und Office-Bereiche benötigen zusätzlich eine gültige zentrale FergensHub-Lizenz; ohne belastbaren externen Contract gilt fail-closed und es darf keinen lokalen Lizenz-Bypass geben.

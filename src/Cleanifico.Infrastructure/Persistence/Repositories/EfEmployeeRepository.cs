@@ -49,6 +49,9 @@ public sealed class EfEmployeeRepository(CleanificoDbContext dbContext) : IEmplo
                 && (!excludedId.HasValue || employee.Id != excludedId.Value),
             cancellationToken);
 
+    public Task<bool> HasContractsAsync(Guid employeeId, CancellationToken cancellationToken) =>
+        dbContext.EmployeeContracts.AnyAsync(contract => contract.EmployeeId == employeeId, cancellationToken);
+
     public async Task AddAsync(Employee employee, CancellationToken cancellationToken) =>
         await dbContext.Employees.AddAsync(employee, cancellationToken);
 

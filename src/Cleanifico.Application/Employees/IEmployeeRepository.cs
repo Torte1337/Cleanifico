@@ -16,6 +16,8 @@ public interface IEmployeeRepository
         Guid? excludedId,
         CancellationToken cancellationToken);
 
+    Task<bool> HasContractsAsync(Guid employeeId, CancellationToken cancellationToken);
+
     Task AddAsync(Employee employee, CancellationToken cancellationToken);
 
     void Remove(Employee employee);

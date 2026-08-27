@@ -1,0 +1,234 @@
+@page "/mitarbeitervertraege"
+@rendermode InteractiveServer
+@attribute [Authorize(Policy = SecurityPolicies.ViewEmployeeContracts)]
+@using Cleanifico.Contracts.EmployeeContracts
+@using Cleanifico.Contracts.Employees
+@using Cleanifico.Web.ApiClients
+@inject IEmployeeContractsApiClient ContractsApiClient
+@inject IEmployeesApiClient EmployeesApiClient
+
+<PageTitle>Mitarbeiterverträge | Cleanifico Office</PageTitle>
+
+<section class="page-heading">
+    <div>
+        <p class="eyebrow">Personal</p>
+        <h1>Mitarbeiterverträge</h1>
+        <p>Verwalten Sie aktuelle und historische Beschäftigungsbedingungen.</p>
+    </div>
+    <AuthorizeView Policy="@SecurityPolicies.ManageEmployeeContracts">
+        <button class="button button-primary" type="button" @onclick="OpenCreateDialog">＋ Vertrag anlegen</button>
+    </AuthorizeView>
+</section>
+
+@if (!string.IsNullOrWhiteSpace(feedbackMessage))
+{
+    <div class="message message-success" role="status">@feedbackMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="message message-error" role="alert">
+        <span>@errorMessage</span><button type="button" @onclick="LoadAsync">Erneut versuchen</button>
+    </div>
+}
+
+<section class="content-card">
+    <form class="toolbar" @onsubmit="LoadAsync" @onsubmit:preventDefault>
+        <label class="search-field">
+            <span aria-hidden="true">⌕</span>
+            <input aria-label="Verträge suchen" placeholder="Vertragsnummer, Mitarbeiter oder Beschäftigungsart..." @bind="search" />
+        </label>
+        <label class="select-filter"><span>Status</span><select @bind="statusFilter" @bind:after="LoadAsync"><option value="all">Alle</option><option value="active">Aktiv</option><option value="inactive">Inaktiv</option></select></label>
+        <label class="select-filter"><span>Mitarbeiter</span><select @bind="employeeFilter" @bind:after="LoadAsync"><option value="">Alle Mitarbeiter</option>@foreach (EmployeeResponse employee in employees) { <option value="@employee.Id">@EmployeeLabel(employee)</option> }</select></label>
+        <button class="button button-secondary" type="submit">Suchen</button>
+    </form>
+
+    @if (isLoading)
+    {
+        <div class="loading-state" role="status">Verträge werden geladen…</div>
+    }
+    else if (contracts.Count == 0)
+    {
+        <div class="empty-state"><strong>Keine Mitarbeiterverträge gefunden</strong><p>Passen Sie Suche oder Filter an.</p></div>
+    }
+    else
+    {
+        <div class="table-scroll"><table><thead><tr><th>Vertragsnummer</th><th>Mitarbeiter</th><th>Beschäftigungsart</th><th>Beginn</th><th>Ende / Laufzeit</th><th>Wochenstunden</th><th>Urlaubstage</th><th>Status</th><th>Aktionen</th></tr></thead><tbody>
+        @foreach (EmployeeContractResponse contract in contracts)
+        {
+            <tr class="@(contract.IsActive ? null : "inactive-row")">
+                <td><span class="number-chip">@contract.ContractNumber</span></td>
+                <td><strong>@contract.EmployeeName</strong><small>@contract.EmployeeNumber</small></td>
+                <td>@FormatOrDash(contract.EmploymentType)</td><td>@FormatDate(contract.StartDate)</td><td>@FormatEnd(contract)</td>
+                <td>@FormatHours(contract.WeeklyHours)</td><td>@FormatDays(contract.VacationDaysPerYear)</td>
+                <td><span class="status-badge @(contract.IsActive ? "active" : "inactive")">@(contract.IsActive ? "Aktiv" : "Inaktiv")</span></td>
+                <td><div class="row-actions"><button type="button" @onclick="() => OpenDetailsAsync(contract.Id)">Details</button>
+                    <AuthorizeView Policy="@SecurityPolicies.ManageEmployeeContracts"><Authorized>
+                        <button type="button" @onclick="() => OpenEditDialog(contract)">Bearbeiten</button>
+                        @if (contract.IsActive) { <button type="button" @onclick="() => ConfirmDeactivate(contract)">Deaktivieren</button> }
+                        else { <button type="button" @onclick="() => ActivateAsync(contract)">Reaktivieren</button> }
+                        <button class="danger-action" type="button" @onclick="() => ConfirmDelete(contract)">Löschen</button>
+                    </Authorized></AuthorizeView>
+                </div></td>
+            </tr>
+        }
+        </tbody></table></div>
+    }
+</section>
+
+@if (detailContract is not null)
+{
+    <div class="modal-backdrop"><section class="modal detail-modal" role="dialog" aria-modal="true" aria-labelledby="contract-detail-title">
+        <header><div><p class="eyebrow">Vertragsdetails</p><h2 id="contract-detail-title">@detailContract.ContractNumber</h2><span class="detail-number">@detailContract.EmployeeName · @detailContract.EmployeeNumber</span></div><button class="icon-button" type="button" aria-label="Details schließen" @onclick="CloseDetails">×</button></header>
+        <div class="detail-grid">
+            <section><h3>Zuordnung</h3><dl><dt>Mitarbeiter</dt><dd>@detailContract.EmployeeName</dd><dt>Personalnummer</dt><dd>@detailContract.EmployeeNumber</dd><dt>Vertragsnummer</dt><dd>@detailContract.ContractNumber</dd><dt>Status</dt><dd>@(detailContract.IsActive ? "Aktiv" : "Inaktiv")</dd></dl></section>
+            <section><h3>Zeitraum</h3><dl><dt>Beginn</dt><dd>@FormatDate(detailContract.StartDate)</dd><dt>Ende</dt><dd>@FormatEnd(detailContract)</dd><dt>Probezeit bis</dt><dd>@FormatDate(detailContract.ProbationEndDate)</dd></dl></section>
+            <section><h3>Beschäftigung</h3><dl><dt>Beschäftigungsart</dt><dd>@FormatOrDash(detailContract.EmploymentType)</dd><dt>Wochenstunden</dt><dd>@FormatHours(detailContract.WeeklyHours)</dd><dt>Monatliche Sollstunden</dt><dd>@FormatHours(detailContract.MonthlyTargetHours)</dd><dt>Urlaubstage/Jahr</dt><dd>@FormatDays(detailContract.VacationDaysPerYear)</dd></dl></section>
+            <section class="detail-wide"><h3>Notizen</h3><p class="notes">@FormatOrDash(detailContract.Notes)</p></section>
+        </div>
+        <footer><AuthorizeView Policy="@SecurityPolicies.ManageEmployeeContracts"><button class="button button-primary" type="button" @onclick="() => EditFromDetails(detailContract)">Bearbeiten</button></AuthorizeView><button class="button button-secondary" type="button" @onclick="CloseDetails">Schließen</button></footer>
+    </section></div>
+}
+
+@if (isEditDialogOpen)
+{
+    <div class="modal-backdrop"><section class="modal edit-modal" role="dialog" aria-modal="true" aria-labelledby="contract-edit-title">
+        <header><div><p class="eyebrow">Personal</p><h2 id="contract-edit-title">@(editingId.HasValue ? "Vertrag bearbeiten" : "Vertrag anlegen")</h2></div><button class="icon-button" type="button" aria-label="Dialog schließen" @onclick="CloseEditDialog">×</button></header>
+        @if (!string.IsNullOrWhiteSpace(dialogErrorMessage)) { <div class="message message-error" role="alert">@dialogErrorMessage</div> }
+        <EditForm Model="formModel" OnValidSubmit="SaveAsync" FormName="employee-contract-form"><DataAnnotationsValidator />
+            <div class="form-grid">
+                <div class="form-field form-field-wide"><label for="contract-employee">Mitarbeiter</label><InputSelect id="contract-employee" @bind-Value="formModel.EmployeeId"><option value="@Guid.Empty">Bitte auswählen</option>@foreach (EmployeeResponse employee in employees) { <option value="@employee.Id">@EmployeeLabel(employee)</option> }</InputSelect><ValidationMessage For="() => formModel.EmployeeId" /></div>
+                <div class="form-field"><label for="contract-number">Vertragsnummer</label><InputText id="contract-number" @bind-Value="formModel.ContractNumber" /><ValidationMessage For="() => formModel.ContractNumber" /></div>
+                <div class="form-field"><label for="contract-start">Beginn</label><InputDate id="contract-start" @bind-Value="formModel.StartDate" /><ValidationMessage For="() => formModel.StartDate" /></div>
+                <div class="form-field"><label for="contract-end">Ende</label><InputDate id="contract-end" disabled="@formModel.IsPermanent" @bind-Value="formModel.EndDate" /><ValidationMessage For="() => formModel.EndDate" /></div>
+                <div class="form-field checkbox-field"><label><InputCheckbox @bind-Value="formModel.IsPermanent" @bind-Value:after="PermanentChanged" /> Unbefristeter Vertrag</label></div>
+                <div class="form-field"><label for="contract-type">Beschäftigungsart</label><InputText id="contract-type" list="employment-types" @bind-Value="formModel.EmploymentType" /><datalist id="employment-types"><option value="Vollzeit"></option><option value="Teilzeit"></option><option value="Minijob"></option><option value="Werkstudent"></option><option value="Aushilfe"></option></datalist><ValidationMessage For="() => formModel.EmploymentType" /></div>
+                <div class="form-field"><label for="contract-weekly">Wochenstunden</label><InputNumber id="contract-weekly" step="0.25" @bind-Value="formModel.WeeklyHours" /><ValidationMessage For="() => formModel.WeeklyHours" /></div>
+                <div class="form-field"><label for="contract-monthly">Monatliche Sollstunden</label><InputNumber id="contract-monthly" step="0.25" @bind-Value="formModel.MonthlyTargetHours" /><ValidationMessage For="() => formModel.MonthlyTargetHours" /></div>
+                <div class="form-field"><label for="contract-vacation">Urlaubstage pro Jahr</label><InputNumber id="contract-vacation" step="0.5" @bind-Value="formModel.VacationDaysPerYear" /><ValidationMessage For="() => formModel.VacationDaysPerYear" /></div>
+                <div class="form-field"><label for="contract-probation">Probezeit bis</label><InputDate id="contract-probation" @bind-Value="formModel.ProbationEndDate" /><ValidationMessage For="() => formModel.ProbationEndDate" /></div>
+                <div class="form-field form-field-wide"><label for="contract-notes">Notizen</label><InputTextArea id="contract-notes" rows="4" @bind-Value="formModel.Notes" /><ValidationMessage For="() => formModel.Notes" /></div>
+            </div>
+            <footer><button class="button button-secondary" type="button" @onclick="CloseEditDialog">Abbrechen</button><button class="button button-primary" type="submit" disabled="@isSaving">@(isSaving ? "Wird gespeichert…" : "Speichern")</button></footer>
+        </EditForm>
+    </section></div>
+}
+
+@if (pendingConfirmation is not null)
+{
+    <div class="modal-backdrop"><section class="modal confirmation-modal" role="alertdialog" aria-modal="true"><header><h2>@pendingConfirmation.Title</h2></header><p>@pendingConfirmation.Message</p>
+        @if (pendingConfirmation.Delete) { <p class="delete-warning">Diese Aktion löscht den Vertrag endgültig. Sobald historische Vorgänge ihn referenzieren, ist nur noch Beenden oder Deaktivieren zulässig.</p> }
+        <footer><button class="button button-secondary" type="button" @onclick="CancelConfirmation">Abbrechen</button><button class="button @(pendingConfirmation.Delete ? "button-danger" : "button-primary")" type="button" disabled="@isSaving" @onclick="ExecuteConfirmationAsync">@(pendingConfirmation.Delete ? "Endgültig löschen" : "Deaktivieren")</button></footer>
+    </section></div>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name = "employeeId")] public Guid? InitialEmployeeId { get; set; }
+    [SupplyParameterFromQuery(Name = "contractId")] public Guid? InitialContractId { get; set; }
+
+    private readonly List<EmployeeContractResponse> contracts = [];
+    private readonly List<EmployeeResponse> employees = [];
+    private string search = string.Empty;
+    private string statusFilter = "all";
+    private string employeeFilter = string.Empty;
+    private string? errorMessage;
+    private string? feedbackMessage;
+    private string? dialogErrorMessage;
+    private bool isLoading;
+    private bool isSaving;
+    private bool isEditDialogOpen;
+    private Guid? editingId;
+    private UpdateEmployeeContractRequest formModel = NewForm();
+    private EmployeeContractResponse? detailContract;
+    private PendingConfirmation? pendingConfirmation;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (InitialEmployeeId.HasValue) employeeFilter = InitialEmployeeId.Value.ToString();
+        await LoadEmployeesAsync();
+        await LoadAsync();
+        if (InitialContractId.HasValue) await OpenDetailsAsync(InitialContractId.Value);
+    }
+
+    private async Task LoadEmployeesAsync()
+    {
+        try { employees.Clear(); employees.AddRange(await EmployeesApiClient.GetAllAsync(null, null)); }
+        catch (ApiClientException exception) { errorMessage = $"Mitarbeiter konnten nicht geladen werden: {exception.Message}"; }
+        catch (HttpRequestException) { errorMessage = "Mitarbeiter konnten nicht geladen werden: Die Cleanifico API ist nicht erreichbar."; }
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true; errorMessage = null;
+        try { contracts.Clear(); contracts.AddRange(await ContractsApiClient.GetAllAsync(search, SelectedStatus(), SelectedEmployee())); }
+        catch (ApiClientException exception) { errorMessage = $"Laden fehlgeschlagen: {exception.Message}"; }
+        catch (HttpRequestException) { errorMessage = "Laden fehlgeschlagen: Die Cleanifico API ist nicht erreichbar."; }
+        finally { isLoading = false; }
+    }
+
+    private bool? SelectedStatus() => statusFilter switch { "active" => true, "inactive" => false, _ => null };
+    private Guid? SelectedEmployee() => Guid.TryParse(employeeFilter, out Guid id) ? id : null;
+    private void OpenCreateDialog() { editingId = null; formModel = NewForm(); if (SelectedEmployee() is { } id) formModel.EmployeeId = id; dialogErrorMessage = null; isEditDialogOpen = true; }
+    private void OpenEditDialog(EmployeeContractResponse contract) { editingId = contract.Id; formModel = ToForm(contract); dialogErrorMessage = null; isEditDialogOpen = true; }
+    private void EditFromDetails(EmployeeContractResponse contract) { detailContract = null; OpenEditDialog(contract); }
+    private void CloseEditDialog() { if (!isSaving) { isEditDialogOpen = false; dialogErrorMessage = null; } }
+    private void CloseDetails() => detailContract = null;
+    private void PermanentChanged() { if (formModel.IsPermanent) formModel.EndDate = null; }
+
+    private async Task SaveAsync()
+    {
+        isSaving = true; dialogErrorMessage = null;
+        try
+        {
+            if (editingId is { } id) { await ContractsApiClient.UpdateAsync(id, formModel); feedbackMessage = "Der Vertrag wurde gespeichert."; }
+            else { await ContractsApiClient.CreateAsync(ToCreate(formModel)); feedbackMessage = "Der Vertrag wurde angelegt."; }
+            isEditDialogOpen = false; await LoadAsync();
+        }
+        catch (ApiClientException exception) { dialogErrorMessage = $"Speichern fehlgeschlagen: {exception.Message}"; }
+        catch (HttpRequestException) { dialogErrorMessage = "Speichern fehlgeschlagen: Die Cleanifico API ist nicht erreichbar."; }
+        finally { isSaving = false; }
+    }
+
+    private async Task OpenDetailsAsync(Guid id)
+    {
+        try { detailContract = await ContractsApiClient.GetByIdAsync(id); }
+        catch (ApiClientException exception) { errorMessage = $"Details konnten nicht geladen werden: {exception.Message}"; }
+        catch (HttpRequestException) { errorMessage = "Details konnten nicht geladen werden: Die Cleanifico API ist nicht erreichbar."; }
+    }
+
+    private void ConfirmDeactivate(EmployeeContractResponse contract) => pendingConfirmation = new(contract, false, "Vertrag deaktivieren", $"Möchten Sie Vertrag „{contract.ContractNumber}“ wirklich deaktivieren?");
+    private void ConfirmDelete(EmployeeContractResponse contract) => pendingConfirmation = new(contract, true, "Vertrag endgültig löschen", $"Möchten Sie Vertrag „{contract.ContractNumber}“ endgültig löschen?");
+    private void CancelConfirmation() { if (!isSaving) pendingConfirmation = null; }
+
+    private async Task ExecuteConfirmationAsync()
+    {
+        if (pendingConfirmation is null) return;
+        PendingConfirmation confirmation = pendingConfirmation; isSaving = true;
+        try
+        {
+            if (confirmation.Delete) { await ContractsApiClient.DeleteAsync(confirmation.Contract.Id); feedbackMessage = "Der Vertrag wurde endgültig gelöscht."; }
+            else { await ContractsApiClient.DeactivateAsync(confirmation.Contract.Id); feedbackMessage = "Der Vertrag wurde deaktiviert."; }
+            pendingConfirmation = null; await LoadAsync();
+        }
+        catch (ApiClientException exception) { pendingConfirmation = null; errorMessage = exception.Message; }
+        catch (HttpRequestException) { pendingConfirmation = null; errorMessage = "Die Cleanifico API ist nicht erreichbar."; }
+        finally { isSaving = false; }
+    }
+
+    private async Task ActivateAsync(EmployeeContractResponse contract)
+    {
+        try { await ContractsApiClient.ActivateAsync(contract.Id); feedbackMessage = "Der Vertrag wurde reaktiviert."; await LoadAsync(); }
+        catch (ApiClientException exception) { errorMessage = exception.Message; }
+        catch (HttpRequestException) { errorMessage = "Die Cleanifico API ist nicht erreichbar."; }
+    }
+
+    private static UpdateEmployeeContractRequest NewForm() => new() { StartDate = DateOnly.FromDateTime(DateTime.Today), IsPermanent = true };
+    private static UpdateEmployeeContractRequest ToForm(EmployeeContractResponse value) => new() { ContractNumber = value.ContractNumber, EmployeeId = value.EmployeeId, StartDate = value.StartDate, EndDate = value.EndDate, IsPermanent = value.IsPermanent, EmploymentType = value.EmploymentType, WeeklyHours = value.WeeklyHours, MonthlyTargetHours = value.MonthlyTargetHours, VacationDaysPerYear = value.VacationDaysPerYear, ProbationEndDate = value.ProbationEndDate, Notes = value.Notes };
+    private static CreateEmployeeContractRequest ToCreate(EmployeeContractRequestBase value) => new() { ContractNumber = value.ContractNumber, EmployeeId = value.EmployeeId, StartDate = value.StartDate, EndDate = value.EndDate, IsPermanent = value.IsPermanent, EmploymentType = value.EmploymentType, WeeklyHours = value.WeeklyHours, MonthlyTargetHours = value.MonthlyTargetHours, VacationDaysPerYear = value.VacationDaysPerYear, ProbationEndDate = value.ProbationEndDate, Notes = value.Notes };
+    private static string EmployeeLabel(EmployeeResponse value) => $"{value.EmployeeNumber} · {value.FirstName} {value.LastName}";
+    private static string FormatOrDash(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
+    private static string FormatDate(DateOnly? value) => value?.ToString("dd.MM.yyyy") ?? "—";
+    private static string FormatEnd(EmployeeContractResponse value) => value.IsPermanent ? "Unbefristet" : FormatDate(value.EndDate);
+    private static string FormatHours(decimal value) => $"{value:0.##} Std.";
+    private static string FormatDays(decimal value) => $"{value:0.##}";
+    private sealed record PendingConfirmation(EmployeeContractResponse Contract, bool Delete, string Title, string Message);
+}

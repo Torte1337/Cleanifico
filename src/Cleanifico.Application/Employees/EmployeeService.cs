@@ -66,6 +66,13 @@ public sealed class EmployeeService(
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
         Employee employee = await GetByIdAsync(id, cancellationToken);
+        if (await repository.HasContractsAsync(id, cancellationToken))
+        {
+            throw new EmployeeConflictException(
+                "delete",
+                "Der Mitarbeiter besitzt Verträge und kann nicht endgültig gelöscht werden. Deaktivieren Sie ihn stattdessen.");
+        }
+
         repository.Remove(employee);
         await repository.SaveChangesAsync(cancellationToken);
     }
@@ -95,11 +102,6 @@ public sealed class EmployeeService(
         input.Phone,
         input.MobilePhone,
         input.DateOfBirth,
-        input.EmploymentStartDate,
-        input.EmploymentEndDate,
-        input.EmploymentType,
-        input.WeeklyHours,
-        input.MonthlyTargetHours,
         input.Notes);
 
     private DateTime UtcNow() => timeProvider.GetUtcNow().UtcDateTime;

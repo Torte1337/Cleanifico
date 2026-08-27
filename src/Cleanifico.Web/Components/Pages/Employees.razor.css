@@ -15,7 +15,7 @@
 .status-filter span { color: #5d6b65; font-size: .72rem; font-weight: 650; }
 .status-filter select { background: #fff; border: 1px solid #cdd9d3; border-radius: .5rem; min-height: 2.6rem; padding: 0 .7rem; }
 .table-scroll { overflow-x: auto; }
-table { border-collapse: collapse; min-width: 84rem; width: 100%; }
+table { border-collapse: collapse; min-width: 68rem; width: 100%; }
 th, td { border-bottom: 1px solid #e8eeeb; padding: .9rem .85rem; text-align: left; vertical-align: middle; }
 th { background: #f7f9f8; color: #5d6b65; font-size: .68rem; font-weight: 750; letter-spacing: .05em; text-transform: uppercase; }
 td { color: #34473e; font-size: .84rem; }
@@ -57,6 +57,10 @@ td { color: #34473e; font-size: .84rem; }
 .detail-grid dd { color: #2e4037; font-size: .82rem; margin: 0; overflow-wrap: anywhere; }
 .detail-wide { grid-column: 1 / -1; }
 .notes { line-height: 1.55; margin: 0; white-space: pre-wrap; }
+.contract-history { display: grid; gap: .65rem; list-style: none; margin: 0 0 .85rem; padding: 0; }
+.contract-history li { align-items: baseline; display: flex; gap: .8rem; justify-content: space-between; }
+.contract-history a, .contracts-link, .detail-grid a { color: #246b50; font-weight: 700; }
+.contract-history span { color: #718078; font-size: .76rem; }
 .delete-warning { background: #fff1f1; border-radius: .45rem; color: #8b3434; font-size: .82rem; padding: .7rem; }
 @media (max-width: 760px) {
     .page-heading { align-items: stretch; flex-direction: column; }

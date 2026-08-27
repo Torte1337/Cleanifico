@@ -41,6 +41,12 @@
                     Mitarbeiter
                 </NavLink>
             </AuthorizeView>
+            <AuthorizeView Policy="@SecurityPolicies.ViewEmployeeContracts">
+                <NavLink href="/mitarbeitervertraege">
+                    <span class="nav-icon" aria-hidden="true">▤</span>
+                    Mitarbeiterverträge
+                </NavLink>
+            </AuthorizeView>
             <AuthorizeView Policy="@SecurityPolicies.ViewTimeTypes">
                 <NavLink href="/zeittypen">
                     <span class="nav-icon" aria-hidden="true">◷</span>

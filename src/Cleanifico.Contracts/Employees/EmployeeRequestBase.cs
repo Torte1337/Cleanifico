@@ -39,17 +39,6 @@ public abstract class EmployeeRequestBase
     public string? MobilePhone { get; set; }
 
     public DateOnly? DateOfBirth { get; set; }
-    public DateOnly? EmploymentStartDate { get; set; }
-    public DateOnly? EmploymentEndDate { get; set; }
-
-    [StringLength(100, ErrorMessage = "Die Beschäftigungsart darf höchstens 100 Zeichen lang sein.")]
-    public string? EmploymentType { get; set; }
-
-    [Range(typeof(decimal), "0", "99999.99", ErrorMessage = "Die Wochenstunden dürfen nicht negativ sein.")]
-    public decimal WeeklyHours { get; set; }
-
-    [Range(typeof(decimal), "0", "99999.99", ErrorMessage = "Die monatlichen Sollstunden dürfen nicht negativ sein.")]
-    public decimal MonthlyTargetHours { get; set; }
 
     [StringLength(2_000, ErrorMessage = "Die Notizen dürfen höchstens 2000 Zeichen lang sein.")]
     public string? Notes { get; set; }

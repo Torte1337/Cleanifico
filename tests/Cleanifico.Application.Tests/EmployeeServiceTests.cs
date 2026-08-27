@@ -55,6 +55,24 @@ public sealed class EmployeeServiceTests
         Assert.DoesNotContain(active, repository.Items);
     }
 
+    [Fact]
+    public async Task Delete_RejectsEmployeeWithContractAndAllowsEmployeeWithoutContract()
+    {
+        Employee referenced = CreateEmployee("P-100", "Erika", "Muster");
+        Employee unreferenced = CreateEmployee("P-200", "Paul", "Beispiel");
+        var repository = new FakeRepository(referenced, unreferenced);
+        repository.EmployeeIdsWithContracts.Add(referenced.Id);
+        var service = CreateService(repository);
+
+        EmployeeConflictException exception = await Assert.ThrowsAsync<EmployeeConflictException>(() =>
+            service.DeleteAsync(referenced.Id));
+        await service.DeleteAsync(unreferenced.Id);
+
+        Assert.Equal("delete", exception.Field);
+        Assert.Contains(referenced, repository.Items);
+        Assert.DoesNotContain(unreferenced, repository.Items);
+    }
+
     private static EmployeeService CreateService(FakeRepository repository) =>
         new(repository, new FixedTimeProvider(Now));
 
@@ -63,7 +81,7 @@ public sealed class EmployeeServiceTests
         string firstName,
         string lastName,
         string? city = null) =>
-        new(number, firstName, lastName, null, null, city, null, null, null, null, null, null, null, "Teilzeit", 20, 86.5m, null);
+        new(number, firstName, lastName, null, null, city, null, null, null, null, null, null);
 
     private static Employee CreateEmployee(
         string number,
@@ -74,7 +92,7 @@ public sealed class EmployeeServiceTests
         string? phone = null) =>
         Employee.Create(
             Guid.NewGuid(),
-            new EmployeeData(number, firstName, lastName, null, null, city, null, email, phone, null, null, null, null, null, 0, 0, null),
+            new EmployeeData(number, firstName, lastName, null, null, city, null, email, phone, null, null, null),
             Now.UtcDateTime.AddDays(-1));
 
     private sealed class FixedTimeProvider(DateTimeOffset now) : TimeProvider
@@ -85,6 +103,7 @@ public sealed class EmployeeServiceTests
     private sealed class FakeRepository(params Employee[] seed) : IEmployeeRepository
     {
         public List<Employee> Items { get; } = [.. seed];
+        public HashSet<Guid> EmployeeIdsWithContracts { get; } = [];
         public int SaveChangesCalls { get; private set; }
 
         public Task<IReadOnlyList<Employee>> GetAllAsync(string? search, bool? isActive, CancellationToken cancellationToken)
@@ -111,6 +130,8 @@ public sealed class EmployeeServiceTests
         public Task<bool> EmployeeNumberExistsAsync(string number, Guid? excludedId, CancellationToken cancellationToken) =>
             Task.FromResult(Items.Any(employee => employee.Id != excludedId
                 && string.Equals(employee.EmployeeNumber, number, StringComparison.OrdinalIgnoreCase)));
+        public Task<bool> HasContractsAsync(Guid employeeId, CancellationToken cancellationToken) =>
+            Task.FromResult(EmployeeIdsWithContracts.Contains(employeeId));
         public Task AddAsync(Employee employee, CancellationToken cancellationToken) { Items.Add(employee); return Task.CompletedTask; }
         public void Remove(Employee employee) => Items.Remove(employee);
         public Task SaveChangesAsync(CancellationToken cancellationToken) { SaveChangesCalls++; return Task.CompletedTask; }

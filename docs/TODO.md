@@ -11,7 +11,8 @@
 - [ ] Produktiven Data-Protection-Keyring für API und Web persistent, zugriffsgeschützt und at rest verschlüsselt betreiben.
 - [ ] Passwort-Reset, Einladung/Initialpasswort-Wechsel und MFA mit konkreten Produktanforderungen ergänzen; keine öffentliche Registrierung einführen.
 - [ ] Eine optionale Verknüpfung von `Employee` und `ApplicationUser` erst mit konkreten App-Zugangsanforderungen festlegen; keine automatische Zuordnung ableiten.
-- [ ] Bei Verträgen, Arbeitszeiten, Objektzuweisungen, Einsätzen, Schlüsseln oder historischen Personaldaten Restrict-Fremdschlüssel auf Employee ergänzen und physisches Löschen dann verhindern.
+- [ ] Bei Arbeitszeiten, Objektzuweisungen, Einsätzen, Schlüsseln oder weiteren historischen Personaldaten zusätzliche Restrict-Fremdschlüssel auf Employee ergänzen; EmployeeContract schützt Mitarbeiter bereits gegen physisches Löschen.
+- [ ] Sobald Arbeitszeiten, Abrechnungen oder andere historische Vorgänge EmployeeContract referenzieren, Restrict-Fremdschlüssel ergänzen und physisches Vertragslöschen verhindern.
 - [ ] Beim späteren `TimeEntry`-Modul die beschlossenen Zeittyp-Snapshots speichern und verwendete Zeittypen gegen physisches Löschen absichern.
 - [ ] Einen kontrollierten Rollout-Prozess für Migrationen über alle tenantlokalen Datenbanken definieren.
 - [ ] Echte MySQL-Integrationstests mit eindeutig isolierter, kurzlebiger Testdatenbank ergänzen; bis dahin bleiben EF-Metadaten- und HTTP-Tests bewusst datenbankfrei.
@@ -39,3 +40,4 @@
 - [x] FergensHub-Referenz gezielt analysiert und eine zusätzliche fail-closed Lizenzgrenze mit zentralen API-/Office-Policies, kontrollierter Statusanzeige und Tests umgesetzt; keine externe Scheinintegration erfunden.
 - [x] AssetFico-Lizenzierung gezielt analysiert und das installationsgebundene signierte Lease-Muster einschließlich lokalem State, Aktivierung/Refresh, Grace, Hintergrund-Erneuerung und zentraler Policy-Grenze auf Cleanifico übertragen.
 - [x] Fachliche Mitarbeiterverwaltung mit Personalstammdaten, frei pflegbarer Beschäftigungsart, Persistenz, API, Policies, Office-Seite und Trennung von Identity umgesetzt.
+- [x] Historienfähige Mitarbeiterverträge als 1:n-Modul mit Datenübernahme aus Employee, Zeitraumkonfliktschutz, Restrict-FK, API, Policies, Office-Seite und Mitarbeiterdetail-Historie umgesetzt.

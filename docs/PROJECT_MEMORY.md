@@ -18,14 +18,14 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 - `TimeType` ist ein vollständiger Stammdaten-Schnitt mit frei änderbaren Arbeitszeit-/Bezahlungs-/Objekt-/Abwesenheitsmerkmalen, Farbe, Sortierung und Lifecycle.
 - `Customer` bildet tenantlokale Auftraggeber mit eindeutiger änderbarer Kundennummer, direktem Ansprechpartner, Verwaltungsadresse, Notizen und Lifecycle ab.
 - `CleaningObject` bildet den konkreten Reinigungsort mit eigener Adresse, Kontakt, Zugangs-/Reinigungshinweisen und verpflichtendem Customer-Bezug ab.
-- `Employee` bildet fachliche Personalstammdaten unabhängig von `ApplicationUser` ab. Personalnummern sind tenantlokal eindeutig und änderbar; Beschäftigungsarten bleiben als frei pflegbarer Text kundenspezifisch.
+- `Employee` bildet persönliche Personalstammdaten unabhängig von `ApplicationUser` ab. `EmployeeContract` führt die historienfähigen Beschäftigungsbedingungen in einer 1:n-Beziehung; Beschäftigungsarten bleiben frei pflegbarer Text.
 - `CleanificoDbContext` nutzt EF Core 9.0.19 und Pomelo 9.0.0 mit einem fest konfigurierten MySQL-8.4-Serverprofil.
 - Der Laufzeit-Connection-String wird ausschließlich unter `ConnectionStrings:Cleanifico` erwartet.
-- Die Migrationen heißen `InitialCleanificoPersistence`, `AddTenantIdentity`, `AddConfigurableTimeTypes`, `AddCustomers`, `AddCleaningObjects` und `AddEmployees`; sie werden nicht automatisch beim Hoststart ausgeführt.
+- Die Migrationen heißen `InitialCleanificoPersistence`, `AddTenantIdentity`, `AddConfigurableTimeTypes`, `AddCustomers`, `AddCleaningObjects`, `AddEmployees` und `AddEmployeeContracts`; sie werden nicht automatisch beim Hoststart ausgeführt.
 - `ApplicationUser` und ASP.NET Core Identity liegen ohne zusätzliche `TenantId` in derselben tenantlokalen Datenbank. Benutzername ist die normalisierte, eindeutige E-Mail; Profile führen Vorname, Nachname, Aktivstatus und UTC-Auditzeiten.
-- Rollen: `Owner`, `Administrator`, `Dispatcher`, `ObjectManager`, `Employee`. Zentrale Policies umfassen Office-Zugang, Lese-/Schreibrechte für CleaningType, TimeType, Customer, CleaningObject und Employee, Benutzer-/Rollenverwaltung sowie die interne Aktivitätsprüfung.
+- Rollen: `Owner`, `Administrator`, `Dispatcher`, `ObjectManager`, `Employee`. Zentrale Policies umfassen Office-Zugang, Lese-/Schreibrechte für CleaningType, TimeType, Customer, CleaningObject, Employee und EmployeeContract, Benutzer-/Rollenverwaltung sowie die interne Aktivitätsprüfung.
 - API und Web verwenden einen gemeinsamen verschlüsselten Identity-Cookie und Data-Protection-Schlüsselbund. Inaktive Benutzer werden bei Anmeldung und laufender Autorisierung abgewiesen.
-- Cleanifico Office stellt `/login`, `/zugriff-verweigert`, `/kunden`, `/objekte`, `/mitarbeiter`, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer` bereit; eine öffentliche Registrierung existiert nicht.
+- Cleanifico Office stellt `/login`, `/zugriff-verweigert`, `/kunden`, `/objekte`, `/mitarbeiter`, `/mitarbeitervertraege`, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer` bereit; eine öffentliche Registrierung existiert nicht.
 - Standard-Zeittypen werden genau einmal als normale Datensätze angelegt. Der technische Marker `TimeTypes.StandardData.v1` verhindert späteres Reseeding; Kundenänderungen werden niemals überschrieben.
 - Rollen werden beim Start idempotent angelegt. Ein erster Owner entsteht nur durch explizite Secret-/Konfigurationswerte ohne fest codiertes Passwort.
 - Cleanifico verwendet das AssetFico-Lizenzprinzip: eine installationsgebundene, lokal atomar persistierte und mit ECDSA P-256 signierte Lease ist 30 Tage regulär und weitere 14 Tage im Offline-Toleranzzeitraum gültig. `Valid` und `Grace` erlauben Businesszugriff; `NotActivated`, `Expired` und `Invalid` sperren fail-closed.
@@ -37,7 +37,8 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 - `src/Cleanifico.Domain/TimeTypes/TimeType.cs`: frei konfigurierbarer Zeittyp mit fachlichen Merkmalen und Lifecycle.
 - `src/Cleanifico.Domain/Customers/Customer.cs`: Auftraggeber, Ansprechpartner, Verwaltungsadresse und Lifecycle.
 - `src/Cleanifico.Domain/CleaningObjects/CleaningObject.cs`: Reinigungsort, Customer-Bezug, eigener Kontakt und Lifecycle.
-- `src/Cleanifico.Domain/Employees/Employee.cs`: fachliche Personalstammdaten, Beschäftigungsdaten, Validierung und Lifecycle.
+- `src/Cleanifico.Domain/Employees/Employee.cs`: persönliche Personalstammdaten, Validierung und Lifecycle.
+- `src/Cleanifico.Domain/EmployeeContracts/EmployeeContract.cs`: historienfähige Beschäftigungsbedingungen, Zeitraum und Lifecycle.
 - `src/Cleanifico.Application/CleaningTypes`: Application Service und Persistenzabstraktion.
 - `src/Cleanifico.Infrastructure/Persistence/CleanificoDbContext.cs`: zentraler EF Core Context.
 - `src/Cleanifico.Infrastructure/Persistence/Configurations`: Fluent-API-Mappings.
@@ -59,7 +60,8 @@ Cleanifico wird eine kommerzielle Betriebssoftware für Gebäudereinigungsuntern
 - Keine Fachlogik in API, Web oder Infrastructure.
 - Tenant-Isolation erfolgt durch eine eigene Datenbank; Business-Entities tragen derzeit keine zusätzliche `TenantId`.
 - Benutzerkonten und fachliche Mitarbeiterdatensätze sind getrennte Konzepte; eine Zuordnung wird erst mit konkreten Anforderungen eingeführt.
-- EmployeeNumber ist tenantlokal case-insensitive eindeutig, wird getrimmt und bleibt änderbar. Mitarbeiter dürfen ohne Referenzen physisch gelöscht werden; Verträge, Arbeitszeiten, Objektzuweisungen, Einsätze, Schlüssel oder historische Daten müssen dies später per Fremdschlüssel verhindern.
+- EmployeeNumber und ContractNumber sind tenantlokal case-insensitive eindeutig, werden getrimmt und bleiben änderbar. EmployeeContract ist die einzige Quelle für Beschäftigungsbedingungen; aktive Vertragszeiträume eines Mitarbeiters dürfen sich nicht überschneiden.
+- Employee zu EmployeeContract ist 1:n mit Restrict. Ein Mitarbeiter mit mindestens einem Vertrag darf nicht physisch gelöscht werden. Verträge sind nur ohne spätere historische Referenzen physisch löschbar.
 - Der letzte aktive Owner darf weder deaktiviert werden noch die Owner-Rolle verlieren.
 - Lizenzprüfung ist eine zusätzliche Policy-Anforderung: gültige Lizenz plus authentifizierter aktiver Benutzer plus passende Rolle. Authentifizierung und Autorisierung werden nicht ersetzt.
 - Nur eine kryptografisch verifizierte, zum Produkt `CLEANIFICO` und zur lokalen Installation-ID passende Lease mit Feature `base` kann Businessfunktionen freischalten. Ein FergensHub-Ausfall entwertet eine noch `Valid`/`Grace` befindliche Lease nicht; nach Grace gilt fail-closed.

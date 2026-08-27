@@ -12,11 +12,12 @@ Cleanifico ist eine mandantenfähige Betriebssoftware für Gebäudereinigungsunt
 - frei konfigurierbare `TimeType`-Stammdaten mit einmalig initialisierten, vollständig änderbaren Standardwerten
 - Kundenverwaltung für Auftraggeber mit Ansprechpartner, Verwaltungsadresse, Detailansicht und Lifecycle
 - Objektverwaltung mit verpflichtendem Kundenbezug, eigener Objektadresse, direktem Kontakt und Lifecycle
-- Mitarbeiterverwaltung mit Personalstammdaten, Beschäftigungsumfang und bewusst getrennter Identity
+- Mitarbeiterverwaltung mit persönlichen Stammdaten und bewusst getrennter Identity
+- historienfähige Mitarbeiterverträge mit Vertragsbedingungen, Zeitraumregeln und Löschschutz
 - separate ASP.NET Core API mit geschützten Stammdaten- und Benutzer-Endpunkten; nur `GET /health` und Login sind anonym erreichbar
 - AssetFico-kompatible, installationsgebundene und signierte Offline-Lease mit zentraler fail-closed Lizenzgrenze für alle fachlichen API- und Office-Bereiche
 - separate Blazor-Web-App für Cleanifico Office mit Login, `/kunden`, `/objekte`, `/reinigungstypen`, `/zeittypen` und `/administration/benutzer`
-- Mitarbeiterverwaltung in Cleanifico Office unter `/mitarbeiter`
+- Mitarbeiterverwaltung in Cleanifico Office unter `/mitarbeiter` und Verträge unter `/mitarbeitervertraege`
 - fünf xUnit-Testprojekte mit Domain-, Application-, Identity-, EF-, Architektur-, API- und Web-Integrationstests
 - noch keine Discovery-, Mobile- oder weiteren Businessmodule
 

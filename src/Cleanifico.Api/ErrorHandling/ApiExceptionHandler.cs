@@ -2,6 +2,7 @@ using Cleanifico.Application.CleaningObjects;
 using Cleanifico.Application.CleaningTypes;
 using Cleanifico.Application.Customers;
 using Cleanifico.Application.Employees;
+using Cleanifico.Application.EmployeeContracts;
 using Cleanifico.Application.Security;
 using Cleanifico.Application.TimeTypes;
 using Cleanifico.Domain.Common;
@@ -82,6 +83,22 @@ public sealed class ApiExceptionHandler(ILogger<ApiExceptionHandler> logger) : I
                 Results.Problem(
                     statusCode: StatusCodes.Status409Conflict,
                     title: "Mitarbeiter konnte nicht geändert werden",
+                    detail: conflictException.Message,
+                    extensions: new Dictionary<string, object?>
+                    {
+                        ["field"] = conflictException.Field
+                    }),
+
+            EmployeeContractNotFoundException notFoundException =>
+                Results.Problem(
+                    statusCode: StatusCodes.Status404NotFound,
+                    title: "Mitarbeitervertrag nicht gefunden",
+                    detail: notFoundException.Message),
+
+            EmployeeContractConflictException conflictException =>
+                Results.Problem(
+                    statusCode: StatusCodes.Status409Conflict,
+                    title: "Mitarbeitervertrag konnte nicht geändert werden",
                     detail: conflictException.Message,
                     extensions: new Dictionary<string, object?>
                     {

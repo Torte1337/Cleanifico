@@ -13,7 +13,6 @@ public sealed class Employee
     public const int MaxCountryLength = 100;
     public const int MaxEmailLength = 320;
     public const int MaxPhoneLength = 50;
-    public const int MaxEmploymentTypeLength = 100;
     public const int MaxNotesLength = 2_000;
 
     private Employee()
@@ -49,11 +48,6 @@ public sealed class Employee
     public string? Phone { get; private set; }
     public string? MobilePhone { get; private set; }
     public DateOnly? DateOfBirth { get; private set; }
-    public DateOnly? EmploymentStartDate { get; private set; }
-    public DateOnly? EmploymentEndDate { get; private set; }
-    public string? EmploymentType { get; private set; }
-    public decimal WeeklyHours { get; private set; }
-    public decimal MonthlyTargetHours { get; private set; }
     public string? Notes { get; private set; }
     public bool IsActive { get; private set; }
     public DateTime CreatedAtUtc { get; private set; }
@@ -102,29 +96,6 @@ public sealed class Employee
     private static EmployeeData Normalize(EmployeeData data)
     {
         ArgumentNullException.ThrowIfNull(data);
-        if (data.EmploymentStartDate is { } start
-            && data.EmploymentEndDate is { } end
-            && end < start)
-        {
-            throw new DomainValidationException(
-                "employmentEndDate",
-                "Das Beschäftigungsende darf nicht vor dem Beschäftigungsbeginn liegen.");
-        }
-
-        if (data.WeeklyHours < 0)
-        {
-            throw new DomainValidationException(
-                "weeklyHours",
-                "Die Wochenstunden dürfen nicht negativ sein.");
-        }
-
-        if (data.MonthlyTargetHours < 0)
-        {
-            throw new DomainValidationException(
-                "monthlyTargetHours",
-                "Die monatlichen Sollstunden dürfen nicht negativ sein.");
-        }
-
         string? email = NormalizeOptional(data.Email, "email", MaxEmailLength);
         if (email is not null && !new EmailAddressAttribute().IsValid(email))
         {
@@ -143,10 +114,6 @@ public sealed class Employee
             Email = email,
             Phone = NormalizeOptional(data.Phone, "phone", MaxPhoneLength),
             MobilePhone = NormalizeOptional(data.MobilePhone, "mobilePhone", MaxPhoneLength),
-            EmploymentType = NormalizeOptional(
-                data.EmploymentType,
-                "employmentType",
-                MaxEmploymentTypeLength),
             Notes = NormalizeOptional(data.Notes, "notes", MaxNotesLength)
         };
     }
@@ -164,11 +131,6 @@ public sealed class Employee
         Phone = data.Phone;
         MobilePhone = data.MobilePhone;
         DateOfBirth = data.DateOfBirth;
-        EmploymentStartDate = data.EmploymentStartDate;
-        EmploymentEndDate = data.EmploymentEndDate;
-        EmploymentType = data.EmploymentType;
-        WeeklyHours = data.WeeklyHours;
-        MonthlyTargetHours = data.MonthlyTargetHours;
         Notes = data.Notes;
     }
 
@@ -231,9 +193,4 @@ public sealed record EmployeeData(
     string? Phone,
     string? MobilePhone,
     DateOnly? DateOfBirth,
-    DateOnly? EmploymentStartDate,
-    DateOnly? EmploymentEndDate,
-    string? EmploymentType,
-    decimal WeeklyHours,
-    decimal MonthlyTargetHours,
     string? Notes);

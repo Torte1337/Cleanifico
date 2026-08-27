@@ -68,7 +68,7 @@ public sealed class EmployeeEndpointTests
     }
 
     [Fact]
-    public async Task DuplicateNumberInvalidDatesAndNegativeHours_AreRejected()
+    public async Task DuplicateNumber_IsRejected()
     {
         await using ApiTestHost host = await ApiTestHost.StartWithEmployeesAsync(
             CreateEmployee("P-100", "Erika", "Muster"));
@@ -76,17 +76,6 @@ public sealed class EmployeeEndpointTests
             "/api/employees",
             Request("p-100", "Paul", "Beispiel"));
         Assert.Equal(HttpStatusCode.Conflict, duplicate.StatusCode);
-
-        UpdateEmployeeRequest invalidDates = Request("P-200", "Paul", "Beispiel");
-        invalidDates.EmploymentStartDate = new(2026, 8, 2);
-        invalidDates.EmploymentEndDate = new(2026, 8, 1);
-        using HttpResponseMessage dates = await host.Client.PostAsJsonAsync("/api/employees", invalidDates);
-        Assert.Equal(HttpStatusCode.BadRequest, dates.StatusCode);
-
-        UpdateEmployeeRequest invalidHours = Request("P-300", "Nina", "Neu");
-        invalidHours.WeeklyHours = -1;
-        using HttpResponseMessage hours = await host.Client.PostAsJsonAsync("/api/employees", invalidHours);
-        Assert.Equal(HttpStatusCode.BadRequest, hours.StatusCode);
     }
 
     [Fact]
@@ -147,15 +136,12 @@ public sealed class EmployeeEndpointTests
         FirstName = firstName,
         LastName = lastName,
         City = city,
-        Email = "kontakt@example.test",
-        EmploymentType = "Teilzeit",
-        WeeklyHours = 20,
-        MonthlyTargetHours = 86.5m
+        Email = "kontakt@example.test"
     };
 
     private static Employee CreateEmployee(string number, string firstName, string lastName) =>
         Employee.Create(
             Guid.NewGuid(),
-            new EmployeeData(number, firstName, lastName, null, null, null, null, null, null, null, null, null, null, null, 0, 0, null),
+            new EmployeeData(number, firstName, lastName, null, null, null, null, null, null, null, null, null),
             CreatedAt);
 }

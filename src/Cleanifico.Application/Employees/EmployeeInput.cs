@@ -12,9 +12,4 @@ public sealed record EmployeeInput(
     string? Phone,
     string? MobilePhone,
     DateOnly? DateOfBirth,
-    DateOnly? EmploymentStartDate,
-    DateOnly? EmploymentEndDate,
-    string? EmploymentType,
-    decimal WeeklyHours,
-    decimal MonthlyTargetHours,
     string? Notes);

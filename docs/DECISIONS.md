@@ -279,3 +279,13 @@ Entscheidung: `Employee` ist eine eigenständige tenantlokale Personal-Entity un
 Grund: Personalstammdaten müssen auch für Beschäftigte ohne Login existieren, während technische Benutzerkonten nicht automatisch Personal darstellen. Frei pflegbare Beschäftigungsarten vermeiden eine unbegründete globale HR-Taxonomie, und der Lifecycle bleibt für spätere historische Daten erweiterbar.
 
 Datum: 2026-08-26
+
+## DEC-029 – EmployeeContract ist Source of Truth für Beschäftigungsbedingungen
+
+Status: Accepted
+
+Entscheidung: `Employee` enthält ausschließlich persönliche Stamm-, Adress- und Kontaktdaten. Vertragszeitraum, Beschäftigungsart, Wochen-/Monatssollstunden und Urlaubsanspruch liegen ausschließlich auf `EmployeeContract`. Ein Employee besitzt null bis viele historische Verträge über einen verpflichtenden Restrict-Fremdschlüssel. Aktive Vertragszeiträume desselben Mitarbeiters dürfen sich nicht überschneiden. Die Migration `AddEmployeeContracts` übernimmt vorhandene Employee-Beschäftigungswerte vor dem Entfernen der alten Spalten; fehlt ein früherer Beginn, wird ein aus vorhandenem Ende beziehungsweise Employee-Erstellungsdatum abgeleiteter Beginn im Migrationsvertrag ausdrücklich dokumentiert.
+
+Grund: Eine einzige fachliche Quelle verhindert widersprüchliche Parallelpflege und erhält Folge- und Änderungsverträge als eigene historische Datensätze. Restrict schützt die Personalhistorie vor Cascade Delete; die gekennzeichnete Migrationsableitung bewahrt vorhandene Bedingungen, ohne einen unbelegten Beginn stillschweigend als sicher darzustellen.
+
+Datum: 2026-08-27

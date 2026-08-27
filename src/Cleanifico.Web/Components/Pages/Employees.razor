@@ -1,9 +1,11 @@
 @page "/mitarbeiter"
 @rendermode InteractiveServer
 @attribute [Authorize(Policy = SecurityPolicies.ViewEmployees)]
+@using Cleanifico.Contracts.EmployeeContracts
 @using Cleanifico.Contracts.Employees
 @using Cleanifico.Web.ApiClients
 @inject IEmployeesApiClient ApiClient
+@inject IEmployeeContractsApiClient ContractsApiClient
 
 <PageTitle>Mitarbeiter | Cleanifico Office</PageTitle>
 
@@ -11,7 +13,7 @@
     <div>
         <p class="eyebrow">Personal</p>
         <h1>Mitarbeiter</h1>
-        <p>Verwalten Sie Personalstammdaten, Kontaktdaten und Beschäftigungsumfang.</p>
+        <p>Verwalten Sie Personalstammdaten und Kontaktdaten; Beschäftigungsbedingungen liegen in Verträgen.</p>
     </div>
     <AuthorizeView Policy="@SecurityPolicies.ManageEmployees">
         <button class="button button-primary" type="button" @onclick="OpenCreateDialog">＋ Mitarbeiter anlegen</button>
@@ -58,15 +60,13 @@
     {
         <div class="table-scroll">
             <table>
-                <thead><tr><th>Personalnummer</th><th>Name</th><th>Beschäftigungsart</th><th>Wochenstunden</th><th>Ort</th><th>Kontakt</th><th>Status</th><th>Aktionen</th></tr></thead>
+                <thead><tr><th>Personalnummer</th><th>Name</th><th>Ort</th><th>Kontakt</th><th>Status</th><th>Aktionen</th></tr></thead>
                 <tbody>
                 @foreach (EmployeeResponse employee in employees)
                 {
                     <tr class="@(employee.IsActive ? null : "inactive-row")">
                         <td><span class="number-chip">@employee.EmployeeNumber</span></td>
                         <td><strong>@EmployeeName(employee)</strong></td>
-                        <td>@FormatOrDash(employee.EmploymentType)</td>
-                        <td>@FormatHours(employee.WeeklyHours)</td>
                         <td>@FormatOrDash(employee.City)</td>
                         <td class="contact-cell"><span>@FormatOrDash(employee.Email)</span><small>@PreferredPhone(employee)</small></td>
                         <td><span class="status-badge @(employee.IsActive ? "active" : "inactive")">@(employee.IsActive ? "Aktiv" : "Inaktiv")</span></td>
@@ -118,13 +118,21 @@
                     <dt>Telefon</dt><dd>@FormatOrDash(detailEmployee.Phone)</dd>
                     <dt>Mobiltelefon</dt><dd>@FormatOrDash(detailEmployee.MobilePhone)</dd>
                 </dl></section>
-                <section><h3>Beschäftigung</h3><dl>
-                    <dt>Beschäftigungsart</dt><dd>@FormatOrDash(detailEmployee.EmploymentType)</dd>
-                    <dt>Beginn</dt><dd>@FormatDate(detailEmployee.EmploymentStartDate)</dd>
-                    <dt>Ende</dt><dd>@FormatDate(detailEmployee.EmploymentEndDate)</dd>
-                    <dt>Wochenstunden</dt><dd>@FormatHours(detailEmployee.WeeklyHours)</dd>
-                    <dt>Monatliche Sollstunden</dt><dd>@FormatHours(detailEmployee.MonthlyTargetHours)</dd>
-                </dl></section>
+                <section><h3>Aktueller Vertrag</h3>
+                    @if (CurrentContract() is { } currentContract)
+                    {
+                        <dl><dt>Vertragsnummer</dt><dd><a href="@ContractLink(currentContract)">@currentContract.ContractNumber</a></dd><dt>Beschäftigungsart</dt><dd>@FormatOrDash(currentContract.EmploymentType)</dd><dt>Beginn</dt><dd>@FormatDate(currentContract.StartDate)</dd><dt>Ende</dt><dd>@(currentContract.IsPermanent ? "Unbefristet" : FormatDate(currentContract.EndDate))</dd><dt>Wochenstunden</dt><dd>@FormatHours(currentContract.WeeklyHours)</dd></dl>
+                    }
+                    else
+                    {
+                        <p class="notes">Kein aktuell wirksamer Vertrag vorhanden.</p>
+                    }
+                </section>
+                <section class="detail-wide"><h3>Vertragshistorie (@detailContracts.Count)</h3>
+                    @if (detailContracts.Count == 0) { <p class="notes">Noch keine Verträge vorhanden.</p> }
+                    else { <ul class="contract-history">@foreach (EmployeeContractResponse contract in detailContracts) { <li><a href="@ContractLink(contract)">@contract.ContractNumber</a><span>@FormatDate(contract.StartDate) – @(contract.IsPermanent ? "unbefristet" : FormatDate(contract.EndDate)) · @(contract.IsActive ? "aktiv" : "inaktiv")</span></li> }</ul> }
+                    <a class="contracts-link" href="/mitarbeitervertraege?employeeId=@detailEmployee.Id">Alle Verträge dieses Mitarbeiters anzeigen</a>
+                </section>
                 <section class="detail-wide"><h3>Notizen</h3><p class="notes">@FormatOrDash(detailEmployee.Notes)</p></section>
             </div>
             <footer><AuthorizeView Policy="@SecurityPolicies.ManageEmployees"><button class="button button-primary" type="button" @onclick="() => EditFromDetails(detailEmployee)">Bearbeiten</button></AuthorizeView><button class="button button-secondary" type="button" @onclick="CloseDetails">Schließen</button></footer>
@@ -154,13 +162,8 @@
                     <div class="form-field"><label for="employee-phone">Telefon</label><InputText id="employee-phone" type="tel" @bind-Value="formModel.Phone" /><ValidationMessage For="() => formModel.Phone" /></div>
                     <div class="form-field"><label for="employee-mobile">Mobiltelefon</label><InputText id="employee-mobile" type="tel" @bind-Value="formModel.MobilePhone" /><ValidationMessage For="() => formModel.MobilePhone" /></div>
 
-                    <h3 class="form-section-title">Beschäftigung</h3>
+                    <h3 class="form-section-title">Persönliche Daten</h3>
                     <div class="form-field"><label for="employee-birth-date">Geburtsdatum</label><InputDate id="employee-birth-date" @bind-Value="formModel.DateOfBirth" /></div>
-                    <div class="form-field"><label for="employee-start-date">Beschäftigungsbeginn</label><InputDate id="employee-start-date" @bind-Value="formModel.EmploymentStartDate" /></div>
-                    <div class="form-field"><label for="employee-end-date">Beschäftigungsende</label><InputDate id="employee-end-date" @bind-Value="formModel.EmploymentEndDate" /></div>
-                    <div class="form-field"><label for="employee-type">Beschäftigungsart</label><InputText id="employee-type" list="employment-types" @bind-Value="formModel.EmploymentType" /><datalist id="employment-types"><option value="Vollzeit"></option><option value="Teilzeit"></option><option value="Minijob"></option><option value="Werkstudent"></option><option value="Aushilfe"></option></datalist><ValidationMessage For="() => formModel.EmploymentType" /></div>
-                    <div class="form-field"><label for="employee-weekly-hours">Wochenstunden</label><InputNumber id="employee-weekly-hours" step="0.25" @bind-Value="formModel.WeeklyHours" /><ValidationMessage For="() => formModel.WeeklyHours" /></div>
-                    <div class="form-field"><label for="employee-monthly-hours">Monatliche Sollstunden</label><InputNumber id="employee-monthly-hours" step="0.25" @bind-Value="formModel.MonthlyTargetHours" /><ValidationMessage For="() => formModel.MonthlyTargetHours" /></div>
                     <div class="form-field form-field-wide"><label for="employee-notes">Notizen</label><InputTextArea id="employee-notes" rows="4" @bind-Value="formModel.Notes" /><ValidationMessage For="() => formModel.Notes" /></div>
                 </div>
                 <footer><button class="button button-secondary" type="button" @onclick="CloseEditDialog">Abbrechen</button><button class="button button-primary" type="submit" disabled="@isSaving">@(isSaving ? "Wird gespeichert…" : "Speichern")</button></footer>
@@ -191,6 +194,7 @@
     private Guid? editingId;
     private UpdateEmployeeRequest formModel = new();
     private EmployeeResponse? detailEmployee;
+    private readonly List<EmployeeContractResponse> detailContracts = [];
     private PendingConfirmation? pendingConfirmation;
 
     protected override Task OnInitializedAsync() => LoadAsync();
@@ -209,7 +213,7 @@
     private void OpenEditDialog(EmployeeResponse employee) { editingId = employee.Id; formModel = ToForm(employee); dialogErrorMessage = null; isEditDialogOpen = true; }
     private void EditFromDetails(EmployeeResponse employee) { detailEmployee = null; OpenEditDialog(employee); }
     private void CloseEditDialog() { if (!isSaving) { isEditDialogOpen = false; dialogErrorMessage = null; } }
-    private void CloseDetails() => detailEmployee = null;
+    private void CloseDetails() { detailEmployee = null; detailContracts.Clear(); }
 
     private async Task SaveAsync()
     {
@@ -227,7 +231,12 @@
 
     private async Task OpenDetailsAsync(Guid id)
     {
-        try { detailEmployee = await ApiClient.GetByIdAsync(id); }
+        try
+        {
+            detailEmployee = await ApiClient.GetByIdAsync(id);
+            detailContracts.Clear();
+            detailContracts.AddRange(await ContractsApiClient.GetAllAsync(null, null, id));
+        }
         catch (ApiClientException exception) { errorMessage = $"Details konnten nicht geladen werden: {exception.Message}"; }
         catch (HttpRequestException) { errorMessage = "Details konnten nicht geladen werden: Die Cleanifico API ist nicht erreichbar."; }
     }
@@ -263,9 +272,7 @@
         EmployeeNumber = value.EmployeeNumber, FirstName = value.FirstName, LastName = value.LastName,
         Street = value.Street, PostalCode = value.PostalCode, City = value.City, Country = value.Country,
         Email = value.Email, Phone = value.Phone, MobilePhone = value.MobilePhone, DateOfBirth = value.DateOfBirth,
-        EmploymentStartDate = value.EmploymentStartDate, EmploymentEndDate = value.EmploymentEndDate,
-        EmploymentType = value.EmploymentType, WeeklyHours = value.WeeklyHours,
-        MonthlyTargetHours = value.MonthlyTargetHours, Notes = value.Notes
+        Notes = value.Notes
     };
 
     private static CreateEmployeeRequest ToCreate(EmployeeRequestBase value) => new()
@@ -273,9 +280,7 @@
         EmployeeNumber = value.EmployeeNumber, FirstName = value.FirstName, LastName = value.LastName,
         Street = value.Street, PostalCode = value.PostalCode, City = value.City, Country = value.Country,
         Email = value.Email, Phone = value.Phone, MobilePhone = value.MobilePhone, DateOfBirth = value.DateOfBirth,
-        EmploymentStartDate = value.EmploymentStartDate, EmploymentEndDate = value.EmploymentEndDate,
-        EmploymentType = value.EmploymentType, WeeklyHours = value.WeeklyHours,
-        MonthlyTargetHours = value.MonthlyTargetHours, Notes = value.Notes
+        Notes = value.Notes
     };
 
     private static string EmployeeName(EmployeeResponse value) => $"{value.FirstName} {value.LastName}";
@@ -284,5 +289,14 @@
     private static string FormatOrDash(string? value) => string.IsNullOrWhiteSpace(value) ? "—" : value;
     private static string FormatDate(DateOnly? value) => value?.ToString("dd.MM.yyyy") ?? "—";
     private static string FormatHours(decimal value) => $"{value:0.##} Std.";
+    private EmployeeContractResponse? CurrentContract()
+    {
+        DateOnly today = DateOnly.FromDateTime(DateTime.Today);
+        return detailContracts.Where(contract => contract.IsActive && contract.StartDate <= today
+                && (!contract.EndDate.HasValue || contract.EndDate.Value >= today))
+            .OrderByDescending(contract => contract.StartDate)
+            .FirstOrDefault();
+    }
+    private static string ContractLink(EmployeeContractResponse contract) => $"/mitarbeitervertraege?employeeId={contract.EmployeeId}&contractId={contract.Id}";
     private sealed record PendingConfirmation(EmployeeResponse Employee, bool Delete, string Title, string Message);
 }

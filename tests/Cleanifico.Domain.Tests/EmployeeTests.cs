@@ -41,30 +41,7 @@ public sealed class EmployeeTests
     }
 
     [Fact]
-    public void Create_RejectsEndBeforeStart()
-    {
-        DomainValidationException exception = Assert.Throws<DomainValidationException>(() =>
-            Employee.Create(
-                Guid.NewGuid(),
-                Data(start: new(2026, 8, 2), end: new(2026, 8, 1)),
-                CreatedAt));
-
-        Assert.Contains("employmentEndDate", exception.Errors.Keys);
-    }
-
-    [Theory]
-    [InlineData(-1, 0, "weeklyHours")]
-    [InlineData(0, -1, "monthlyTargetHours")]
-    public void Create_RejectsNegativeHours(decimal weekly, decimal monthly, string expectedField)
-    {
-        DomainValidationException exception = Assert.Throws<DomainValidationException>(() =>
-            Employee.Create(Guid.NewGuid(), Data(weekly: weekly, monthly: monthly), CreatedAt));
-
-        Assert.Contains(expectedField, exception.Errors.Keys);
-    }
-
-    [Fact]
-    public void UpdateAndLifecycle_ChangeMutableStateWithoutSettingEndDate()
+    public void UpdateAndLifecycle_ChangeMutablePersonalState()
     {
         Employee employee = Employee.Create(Guid.NewGuid(), Data(), CreatedAt);
         employee.Update(Data(number: "P-200", firstName: "Nina", city: "Berlin"), CreatedAt.AddHours(1));
@@ -74,7 +51,6 @@ public sealed class EmployeeTests
         Assert.Equal("Nina", employee.FirstName);
         Assert.Equal("Berlin", employee.City);
         Assert.False(employee.IsActive);
-        Assert.Null(employee.EmploymentEndDate);
 
         employee.Activate(CreatedAt.AddHours(3));
         Assert.True(employee.IsActive);
@@ -85,10 +61,6 @@ public sealed class EmployeeTests
         string? firstName = "Erika",
         string? lastName = "Muster",
         string? email = null,
-        string? city = null,
-        DateOnly? start = null,
-        DateOnly? end = null,
-        decimal weekly = 40,
-        decimal monthly = 173) =>
-        new(number, firstName, lastName, null, null, city, null, email, null, null, null, start, end, "Vollzeit", weekly, monthly, null);
+        string? city = null) =>
+        new(number, firstName, lastName, null, null, city, null, email, null, null, null, null);
 }

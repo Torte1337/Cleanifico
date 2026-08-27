@@ -96,11 +96,6 @@ public static class EmployeeEndpoints
         request.Phone,
         request.MobilePhone,
         request.DateOfBirth,
-        request.EmploymentStartDate,
-        request.EmploymentEndDate,
-        request.EmploymentType,
-        request.WeeklyHours,
-        request.MonthlyTargetHours,
         request.Notes);
 
     private static EmployeeResponse ToResponse(Employee employee) => new(
@@ -116,11 +111,6 @@ public static class EmployeeEndpoints
         employee.Phone,
         employee.MobilePhone,
         employee.DateOfBirth,
-        employee.EmploymentStartDate,
-        employee.EmploymentEndDate,
-        employee.EmploymentType,
-        employee.WeeklyHours,
-        employee.MonthlyTargetHours,
         employee.Notes,
         employee.IsActive,
         employee.CreatedAtUtc,

@@ -38,16 +38,6 @@ public sealed class EmployeeConfiguration : IEntityTypeConfiguration<Employee>
         builder.Property(employee => employee.Phone).HasMaxLength(Employee.MaxPhoneLength);
         builder.Property(employee => employee.MobilePhone).HasMaxLength(Employee.MaxPhoneLength);
         builder.Property(employee => employee.DateOfBirth).HasColumnType("date");
-        builder.Property(employee => employee.EmploymentStartDate).HasColumnType("date");
-        builder.Property(employee => employee.EmploymentEndDate).HasColumnType("date");
-        builder.Property(employee => employee.EmploymentType)
-            .HasMaxLength(Employee.MaxEmploymentTypeLength);
-        builder.Property(employee => employee.WeeklyHours)
-            .HasPrecision(7, 2)
-            .IsRequired();
-        builder.Property(employee => employee.MonthlyTargetHours)
-            .HasPrecision(7, 2)
-            .IsRequired();
         builder.Property(employee => employee.Notes).HasMaxLength(Employee.MaxNotesLength);
         builder.Property(employee => employee.IsActive).HasDefaultValue(true).IsRequired();
         builder.Property(employee => employee.CreatedAtUtc).HasColumnType("datetime(6)").IsRequired();

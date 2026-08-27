@@ -5,6 +5,7 @@ using Cleanifico.Application.CleaningTypes;
 using Cleanifico.Application.CleaningObjects;
 using Cleanifico.Application.Customers;
 using Cleanifico.Application.Employees;
+using Cleanifico.Application.EmployeeContracts;
 using Cleanifico.Application.Licensing;
 using Cleanifico.Application.Security;
 using Cleanifico.Application.TimeTypes;
@@ -13,6 +14,7 @@ using Cleanifico.Domain.CleaningTypes;
 using Cleanifico.Domain.CleaningObjects;
 using Cleanifico.Domain.Customers;
 using Cleanifico.Domain.Employees;
+using Cleanifico.Domain.EmployeeContracts;
 using Cleanifico.Domain.TimeTypes;
 using Cleanifico.Infrastructure.Security.Authorization;
 using Microsoft.AspNetCore.Authentication;
@@ -37,7 +39,8 @@ internal sealed class ApiTestHost : IAsyncDisposable
         FakeCleaningObjectRepository cleaningObjectRepository,
         FakeTimeTypeRepository timeTypeRepository,
         FakeCustomerRepository customerRepository,
-        FakeEmployeeRepository employeeRepository)
+        FakeEmployeeRepository employeeRepository,
+        FakeEmployeeContractRepository employeeContractRepository)
     {
         this.application = application;
         Client = client;
@@ -46,6 +49,7 @@ internal sealed class ApiTestHost : IAsyncDisposable
         TimeTypeRepository = timeTypeRepository;
         CustomerRepository = customerRepository;
         EmployeeRepository = employeeRepository;
+        EmployeeContractRepository = employeeContractRepository;
     }
 
     public HttpClient Client { get; }
@@ -59,6 +63,8 @@ internal sealed class ApiTestHost : IAsyncDisposable
     public FakeCustomerRepository CustomerRepository { get; }
 
     public FakeEmployeeRepository EmployeeRepository { get; }
+
+    public FakeEmployeeContractRepository EmployeeContractRepository { get; }
 
     public static async Task<ApiTestHost> StartAsync(params CleaningType[] seed)
         => await StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Valid, seed, [], [], [], []);
@@ -108,6 +114,25 @@ internal sealed class ApiTestHost : IAsyncDisposable
     public static Task<ApiTestHost> StartEmployeesWithLicenseAsync(LicenseStatus status) =>
         StartCoreAsync(SecurityRoles.Owner, false, status, [], [], [], [], []);
 
+    public static Task<ApiTestHost> StartWithEmployeeContractsAsync(
+        Employee[] employees,
+        params EmployeeContract[] contracts) =>
+        StartCoreAsync(SecurityRoles.Owner, false, LicenseStatus.Valid, [], [], [], [], employees, contracts);
+
+    public static Task<ApiTestHost> StartAnonymousWithEmployeeContractsAsync(
+        Employee[] employees,
+        params EmployeeContract[] contracts) =>
+        StartCoreAsync(null, true, LicenseStatus.Valid, [], [], [], [], employees, contracts);
+
+    public static Task<ApiTestHost> StartAsRoleWithEmployeeContractsAsync(
+        string role,
+        Employee[] employees,
+        params EmployeeContract[] contracts) =>
+        StartCoreAsync(role, false, LicenseStatus.Valid, [], [], [], [], employees, contracts);
+
+    public static Task<ApiTestHost> StartEmployeeContractsWithLicenseAsync(LicenseStatus status) =>
+        StartCoreAsync(SecurityRoles.Owner, false, status, [], [], [], [], [], []);
+
     public static Task<ApiTestHost> StartWithLicenseAsync(
         LicenseStatus licenseStatus,
         string? role = SecurityRoles.Owner,
@@ -122,14 +147,19 @@ internal sealed class ApiTestHost : IAsyncDisposable
         TimeType[] timeTypeSeed,
         Customer[] customerSeed,
         CleaningObject[] cleaningObjectSeed,
-        Employee[] employeeSeed)
+        Employee[] employeeSeed,
+        EmployeeContract[]? employeeContractSeed = null)
     {
         var repository = new FakeCleaningTypeRepository(seed);
         var timeTypeRepository = new FakeTimeTypeRepository(timeTypeSeed);
         var customerRepository = new FakeCustomerRepository(customerSeed);
         var cleaningObjectRepository = new FakeCleaningObjectRepository(customerRepository, cleaningObjectSeed);
         var employeeRepository = new FakeEmployeeRepository(employeeSeed);
+        var employeeContractRepository = new FakeEmployeeContractRepository(
+            employeeRepository,
+            employeeContractSeed ?? []);
         customerRepository.CleaningObjects = cleaningObjectRepository.Items;
+        employeeRepository.Contracts = employeeContractRepository.Items;
         var userService = new FakeUserAdministrationService(role);
         var application = ApiApplication.Build(
             [
@@ -146,6 +176,7 @@ internal sealed class ApiTestHost : IAsyncDisposable
                 services.AddSingleton<ICleaningObjectRepository>(cleaningObjectRepository);
                 services.AddSingleton<ICustomerRepository>(customerRepository);
                 services.AddSingleton<IEmployeeRepository>(employeeRepository);
+                services.AddSingleton<IEmployeeContractRepository>(employeeContractRepository);
                 services.AddSingleton<ITimeTypeRepository>(timeTypeRepository);
                 services.AddSingleton<IUserAdministrationService>(userService);
                 services.AddSingleton<ILicenseService>(new FakeLicenseService(licenseStatus));
@@ -187,7 +218,8 @@ internal sealed class ApiTestHost : IAsyncDisposable
             cleaningObjectRepository,
             timeTypeRepository,
             customerRepository,
-            employeeRepository);
+            employeeRepository,
+            employeeContractRepository);
     }
 
     public async ValueTask DisposeAsync()
@@ -557,6 +589,7 @@ internal sealed class FakeCleaningObjectRepository(
 internal sealed class FakeEmployeeRepository(params Employee[] seed) : IEmployeeRepository
 {
     public List<Employee> Items { get; } = [.. seed];
+    public IReadOnlyCollection<EmployeeContract> Contracts { get; set; } = [];
 
     public Task<IReadOnlyList<Employee>> GetAllAsync(
         string? search,
@@ -595,6 +628,9 @@ internal sealed class FakeEmployeeRepository(params Employee[] seed) : IEmployee
         Task.FromResult(Items.Any(employee => employee.Id != excludedId
             && string.Equals(employee.EmployeeNumber, employeeNumber, StringComparison.OrdinalIgnoreCase)));
 
+    public Task<bool> HasContractsAsync(Guid employeeId, CancellationToken cancellationToken) =>
+        Task.FromResult(Contracts.Any(contract => contract.EmployeeId == employeeId));
+
     public Task AddAsync(Employee employee, CancellationToken cancellationToken)
     {
         Items.Add(employee);
@@ -603,4 +639,79 @@ internal sealed class FakeEmployeeRepository(params Employee[] seed) : IEmployee
 
     public void Remove(Employee employee) => Items.Remove(employee);
     public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+}
+
+internal sealed class FakeEmployeeContractRepository(
+    FakeEmployeeRepository employees,
+    params EmployeeContract[] seed) : IEmployeeContractRepository
+{
+    public List<EmployeeContract> Items { get; } = [.. seed];
+
+    public Task<IReadOnlyList<EmployeeContractRecord>> GetAllAsync(
+        string? search,
+        bool? isActive,
+        Guid? employeeId,
+        CancellationToken cancellationToken)
+    {
+        IEnumerable<EmployeeContractRecord> query = Records();
+        if (search is not null)
+        {
+            query = query.Where(record =>
+                record.Contract.ContractNumber.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || (record.Contract.EmploymentType?.Contains(search, StringComparison.OrdinalIgnoreCase) ?? false)
+                || record.EmployeeNumber.Contains(search, StringComparison.OrdinalIgnoreCase)
+                || record.EmployeeName.Contains(search, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (isActive.HasValue) query = query.Where(record => record.Contract.IsActive == isActive.Value);
+        if (employeeId.HasValue) query = query.Where(record => record.Contract.EmployeeId == employeeId.Value);
+        return Task.FromResult<IReadOnlyList<EmployeeContractRecord>>(
+            [.. query.OrderByDescending(record => record.Contract.StartDate)]);
+    }
+
+    public Task<EmployeeContractRecord?> GetRecordByIdAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult(Records().SingleOrDefault(record => record.Contract.Id == id));
+
+    public Task<EmployeeContract?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
+        Task.FromResult(Items.SingleOrDefault(contract => contract.Id == id));
+
+    public Task<bool> EmployeeExistsAsync(Guid employeeId, CancellationToken cancellationToken) =>
+        Task.FromResult(employees.Items.Any(employee => employee.Id == employeeId));
+
+    public Task<bool> ContractNumberExistsAsync(
+        string contractNumber,
+        Guid? excludedId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(Items.Any(contract => contract.Id != excludedId
+            && string.Equals(contract.ContractNumber, contractNumber, StringComparison.OrdinalIgnoreCase)));
+
+    public Task<bool> HasOverlappingActiveContractAsync(
+        Guid employeeId,
+        DateOnly startDate,
+        DateOnly? endDate,
+        Guid? excludedId,
+        CancellationToken cancellationToken) =>
+        Task.FromResult(Items.Any(contract => contract.EmployeeId == employeeId
+            && contract.IsActive
+            && contract.Id != excludedId
+            && (!endDate.HasValue || contract.StartDate <= endDate.Value)
+            && (!contract.EndDate.HasValue || startDate <= contract.EndDate.Value)));
+
+    public Task AddAsync(EmployeeContract contract, CancellationToken cancellationToken)
+    {
+        Items.Add(contract);
+        return Task.CompletedTask;
+    }
+
+    public void Remove(EmployeeContract contract) => Items.Remove(contract);
+    public Task SaveChangesAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+
+    private IEnumerable<EmployeeContractRecord> Records() => Items.Select(contract =>
+    {
+        Employee employee = employees.Items.Single(item => item.Id == contract.EmployeeId);
+        return new EmployeeContractRecord(
+            contract,
+            employee.EmployeeNumber,
+            $"{employee.FirstName} {employee.LastName}");
+    });
 }

@@ -17,7 +17,7 @@ public sealed class EmployeePersistenceTests
     }
 
     [Fact]
-    public void Model_MapsRequiredFieldsDatesHoursAndAuditColumns()
+    public void Model_MapsPersonalRequiredFieldsDateAndAuditColumns()
     {
         using CleanificoDbContext context = CreateContext();
         var entityType = context.Model.FindEntityType(typeof(Employee));
@@ -27,8 +27,6 @@ public sealed class EmployeePersistenceTests
         Assert.False(entityType.FindProperty(nameof(Employee.FirstName))?.IsNullable);
         Assert.False(entityType.FindProperty(nameof(Employee.LastName))?.IsNullable);
         Assert.Equal("date", entityType.FindProperty(nameof(Employee.DateOfBirth))?.GetColumnType());
-        Assert.Equal(7, entityType.FindProperty(nameof(Employee.WeeklyHours))?.GetPrecision());
-        Assert.Equal(2, entityType.FindProperty(nameof(Employee.WeeklyHours))?.GetScale());
         Assert.Equal("datetime(6)", entityType.FindProperty(nameof(Employee.CreatedAtUtc))?.GetColumnType());
     }
 
